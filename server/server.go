@@ -1,36 +1,40 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"log"
+	"msa-nd-box-go/message"
+	"net"
 	"net/http"
-	"sync"
+	"os"
 )
 
-var mu sync.Mutex
+func StartAndRegisterItself(service string) {
+	fmt.Printf("service %s is starting at ", service)
 
-func main() {
-	http.HandleFunc("/",
-		func(writer http.ResponseWriter, request *http.Request) {
-			mu.Lock()
-			c.c++
-			mu.Unlock()
-		})
-	http.HandleFunc("/counter", counter)
-	log.Fatal(http.ListenAndServe("localhost:8000", nil))
+	port := fmt.Sprintf("localhost:%d", findNextPort())
 
+	sm := message.ServerMessage{Service: message.Service{Address: port, Service: service}}
+	buffer := new(bytes.Buffer)
+	_ = json.NewEncoder(buffer).Encode(sm)
+	_, err := http.Post("http://localhost:9000/register", "application/json; charset=utf-8", buffer)
+	if err != nil {
+		os.Exit(1)
+	}
+	fmt.Println(http.ListenAndServe(sm.Service.Address, nil))
 }
 
-func counter(writer http.ResponseWriter, request *http.Request) {
-	mu.Lock()
-	_, _ = fmt.Fprintf(writer, "counter = %s\n", c)
-	mu.Unlock()
+func findNextPort() int {
+	port := 30000
+	for {
+		port++
+		prt := fmt.Sprintf(":%d", port)
+		_, err := net.Listen("tcp", prt)
+		if err == nil {
+			fmt.Printf(" %s \n", prt)
+			return port
+		}
+	}
+	return 65535
 }
-
-
-type Counter struct {
-	c int
-	n string
-}
-
-var c Counter = Counter{0, "counter"}

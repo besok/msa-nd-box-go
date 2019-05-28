@@ -7,11 +7,16 @@ import (
 	"net/http"
 )
 
-func RegisterService() {
-	http.HandleFunc("/register", handle)
+func AdminServer()  {
+	RegisterService()
+	_= http.ListenAndServe(":9000", nil)
 }
 
-func handle(writer http.ResponseWriter, request *http.Request) {
+func RegisterService() {
+	http.HandleFunc("/register", registerServiceHandler)
+}
+
+func registerServiceHandler(writer http.ResponseWriter, request *http.Request) {
 	decoder := json.NewDecoder(request.Body)
 	var sm message.ServerMessage
 	err := decoder.Decode(&sm)

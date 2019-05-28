@@ -1,11 +1,14 @@
 package message
 
+type Status int
+
 const (
-	fail  = "fail"
-	run   = "run"
-	ready = "ready"
-	done  = "done"
+	Fail Status = iota
+	Ready
+	Run
+	Done
 )
+
 
 type ServerMessage struct {
 	Service Service

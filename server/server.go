@@ -14,7 +14,6 @@ func StartAndRegisterItself(service string) {
 	fmt.Printf("service %s is starting at ", service)
 
 	port := fmt.Sprintf("localhost:%d", findNextPort())
-
 	sm := message.ServerMessage{Service: message.Service{Address: port, Service: service}}
 	buffer := new(bytes.Buffer)
 	_ = json.NewEncoder(buffer).Encode(sm)
@@ -36,5 +35,4 @@ func findNextPort() int {
 			return port
 		}
 	}
-	return 65535
 }

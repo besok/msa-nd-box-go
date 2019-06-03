@@ -8,11 +8,11 @@ import (
 )
 
 func AdminServer()  {
-	RegisterService()
+	registerService()
 	_= http.ListenAndServe(":9000", nil)
 }
 
-func RegisterService() {
+func registerService() {
 	http.HandleFunc("/register", registerServiceHandler)
 }
 

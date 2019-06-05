@@ -9,7 +9,11 @@ import (
 )
 
 type Lines []Line
-type Line interface{}
+type Line interface {
+	FromFile(s *string) []Line
+	ToFile(l []*Line) []string
+	Equal(left Line, right Line) bool
+}
 
 type Storage struct {
 	path   string
@@ -27,7 +31,7 @@ func CreateStorage(p string, name string) (Storage, error) {
 		fmt.Printf(" error while creating path: %s , error: %s \n", name, err)
 	}
 
-	return storage,err
+	return storage, err
 }
 
 func (s Storage) storagePath() string {

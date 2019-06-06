@@ -1,49 +1,50 @@
 package storage
 
 import (
+	"fmt"
 	path2 "path"
 	"testing"
 )
 
-func TestCreatStorageIfNotExists(t *testing.T){
+func TestCreatStorageIfNotExists(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	storage := "test_storage"
-	if _, err := CreateStorage(commonPath, storage); err != nil {
-		t.Fatalf("don't expected error : %s \n",err)
+	if _, err := CreateStorage(commonPath, storage, CreateStrLines); err != nil {
+		t.Fatalf("don't expected error : %s \n", err)
 	}
 }
 
-func TestFromFile(t *testing.T){
+func TestFromFile(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storage"
 	storage := "test_storage"
 
-	s, err := CreateStorage(commonPath, storage)
+	s, err := CreateStorage(commonPath, storage, CreateStrLines)
 	if err != nil {
-		t.Fatalf("don't expected error : %s \n",err)
+		t.Fatalf("don't expected error : %s \n", err)
 	}
 
-	path := path2.Join(s.storagePath(),"1.txt")
+	path := path2.Join(s.storagePath(), "1.txt")
 	lines, err := readRawFromFile(&s.mutex, path)
 	if err != nil {
-		t.Fatalf("don't expected error : %s \n",err)
+		t.Fatalf("don't expected error : %s \n", err)
 	}
 
-	for _,l := range lines{
+	for _, l := range lines {
 		println(l)
 	}
 
 }
 
-func TestInterface(t *testing.T){
+func TestInterface(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	storage := "test_storage"
 
-	s, err := CreateStorage(commonPath, storage)
+	s, err := CreateStorage(commonPath, storage, CreateStrLines)
 	if err != nil {
-		t.Fatalf("don't expected error : %s \n",err)
+		t.Fatalf("don't expected error : %s \n", err)
 	}
 
-	path := path2.Join(s.storagePath(),"1.txt")
+	path := path2.Join(s.storagePath(), "1.txt")
 	lines, err := readRawFromFile(&s.mutex, path)
 
 	strLines := new(StrLines)
@@ -54,5 +55,18 @@ func TestInterface(t *testing.T){
 	if len(strLines.lines) == 0 {
 		t.Fatalf("should be values from file")
 	}
+}
+func TestReadAllFiles(t *testing.T) {
+	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
+	storage := "test_storage"
 
+	s, err := CreateStorage(commonPath, storage, CreateStrLines)
+	if err != nil {
+		t.Fatalf("don't expected error : %s \n", err)
+	}
+
+	for k,v := range s.memory{
+		fmt.Printf("service : %s\n",k)
+		PrintLines(v)
+	}
 }

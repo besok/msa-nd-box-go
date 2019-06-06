@@ -11,7 +11,9 @@ type Lines interface {
 	ToString() Records
 }
 
-
+func CreateStrLines() Lines {
+	return new(StrLines)
+}
 
 // simple base impl
 type StrLine struct {
@@ -48,5 +50,3 @@ func PrintLines(lines Lines) {
 		fmt.Printf(" record: %s \n", r)
 	}
 }
-
-

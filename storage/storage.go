@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 )
 
@@ -15,16 +16,39 @@ type Storage struct {
 	memory map[string]Lines
 }
 
-func CreateStorage(p string, name string) (Storage, error) {
-	storage, err := Storage{
-		p, name, sync.Mutex{}, make(map[string]Lines),
-	}.creatStorageIfNotExists()
+func CreateStorage(p string, name string, createType func() Lines) (Storage, error) {
+	storage := Storage{p, name, sync.Mutex{}, make(map[string]Lines),}
+	storage, err := storage.creatStorageIfNotExists()
 
 	if err != nil {
 		fmt.Printf(" error while creating path: %s , error: %s \n", name, err)
+		return storage, err
 	}
 
+	err = storage.readAllFiles(createType)
+
 	return storage, err
+}
+
+func (s *Storage) readAllFiles(createType func() Lines) error {
+	p := s.storagePath()
+	err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			records, err := readRawFromFile(&s.mutex, path)
+			if err != nil {
+				fmt.Printf(" error while pasing path: %s , error: %s \n", path, err)
+			}
+			lines := createType()
+			lines.fromString(records)
+			s.memory[info.Name()] = lines
+		}
+		return err
+	})
+
+	if err != nil {
+		fmt.Printf(" error while pasing path: %s , error: %s \n", s.storagePath(), err)
+	}
+	return err
 }
 
 func (s *Storage) storagePath() string {
@@ -69,4 +93,3 @@ func createDir(path string) error {
 	}
 	return nil
 }
-

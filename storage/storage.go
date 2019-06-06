@@ -8,13 +8,6 @@ import (
 	"sync"
 )
 
-type Lines []Line
-type Line interface {
-	FromFile(s *string) []Line
-	ToFile(l []*Line) []string
-	Equal(left Line, right Line) bool
-}
-
 type Storage struct {
 	path   string
 	name   string
@@ -34,11 +27,10 @@ func CreateStorage(p string, name string) (Storage, error) {
 	return storage, err
 }
 
-func (s Storage) storagePath() string {
+func (s *Storage) storagePath() string {
 	return path.Join(s.path, s.name)
 }
-
-func fromFile(m *sync.Mutex, p string) ([]string, error) {
+func readRawFromFile(m *sync.Mutex, p string) (Records, error) {
 	m.Lock()
 	lines := make([]string, 0)
 	file, e := os.Open(p)
@@ -62,13 +54,11 @@ func fromFile(m *sync.Mutex, p string) ([]string, error) {
 	m.Unlock()
 	return lines, e
 }
-
 func (s Storage) creatStorageIfNotExists() (Storage, error) {
 	err := createDir(s.path)
 	err = createDir(s.storagePath())
 	return s, err
 }
-
 func createDir(path string) error {
 	if _, e := os.Stat(path); os.IsNotExist(e) {
 		if err := os.MkdirAll(path, os.ModePerm); err != nil {
@@ -79,3 +69,4 @@ func createDir(path string) error {
 	}
 	return nil
 }
+

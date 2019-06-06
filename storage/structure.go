@@ -11,6 +11,9 @@ type Lines interface {
 	ToString() Records
 }
 
+
+
+// simple base impl
 type StrLine struct {
 	value string
 }
@@ -24,7 +27,6 @@ func (l *StrLines) fromString(records Records) {
 		l.lines = append(l.lines, StrLine{v})
 	}
 }
-
 func (l *StrLines) ToString() Records {
 	records := make(Records, 0)
 	for _, v := range l.lines {

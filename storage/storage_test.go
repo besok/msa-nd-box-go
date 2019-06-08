@@ -24,7 +24,7 @@ func TestFromFile(t *testing.T) {
 	}
 
 	path := path2.Join(s.storagePath(), "1.txt")
-	lines, err := readRawFromFile(&s.mutex, path)
+	lines, err := readRawFromFile(path)
 	if err != nil {
 		t.Fatalf("don't expected error : %s \n", err)
 	}
@@ -45,7 +45,7 @@ func TestInterface(t *testing.T) {
 	}
 
 	path := path2.Join(s.storagePath(), "1.txt")
-	lines, err := readRawFromFile(&s.mutex, path)
+	lines, err := readRawFromFile(path)
 
 	strLines := new(StrLines)
 
@@ -65,8 +65,28 @@ func TestReadAllFiles(t *testing.T) {
 		t.Fatalf("don't expected error : %s \n", err)
 	}
 
-	for k,v := range s.memory{
-		fmt.Printf("service : %s\n",k)
+	for k, v := range s.memory {
+		fmt.Printf("service : %s\n", k)
+		PrintLines(v)
+	}
+}
+func TestStorage_Put(t *testing.T) {
+	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
+	storage := "test_storage"
+
+	s, err := CreateStorage(commonPath, storage, CreateStrLines)
+	if err != nil {
+		t.Fatalf("don't expected error : %s \n", err)
+	}
+	err = s.Put("n", StrLine{"test3"})
+	err = s.Put("n", StrLine{"test1"})
+	err = s.Put("n", StrLine{"test2"})
+	if  err != nil {
+		t.Fatalf("don't expected error : %s \n", err)
+	}
+
+	for k, v := range s.memory {
+		fmt.Printf("service : %s\n", k)
 		PrintLines(v)
 	}
 }

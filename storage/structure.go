@@ -4,13 +4,19 @@ import "fmt"
 
 type Records []string
 type Line interface {
-	equal(other Line) bool
+	Equal(other Line) bool
 }
 type Lines interface {
 	fromString(records Records)
 	ToString() Records
+	Equal(left Line, right Line) bool
+	Add(line Line) bool
+	Remove(line Line) bool
 }
 
+func CreateEmptyRecords() Records {
+	return make(Records, 0)
+}
 func CreateStrLines() Lines {
 	return new(StrLines)
 }
@@ -21,6 +27,33 @@ type StrLine struct {
 }
 type StrLines struct {
 	lines []StrLine
+}
+
+func (l *StrLines) Add(line Line) bool{
+	l.lines = append(l.lines,line.(StrLine))
+	return true
+}
+
+func (l *StrLines) Remove(line Line) bool {
+	idx := -1
+	lines := l.lines
+	for i, el := range lines {
+		if l.Equal(el, line) {
+			idx = i
+			break
+		}
+	}
+	if idx < 0{
+		return false
+	}
+	ln := len(lines)
+	lines[ln-1], lines[idx] = lines[idx], lines[ln-1]
+	l.lines = lines[:ln-1]
+	return true
+}
+
+func (l *StrLines) Equal(left Line, right Line) bool {
+	return left.Equal(right)
 }
 
 func (l *StrLines) fromString(records Records) {
@@ -36,7 +69,7 @@ func (l *StrLines) ToString() Records {
 	}
 	return records
 }
-func (s StrLine) equal(other Line) bool {
+func (s StrLine) Equal(other Line) bool {
 	oth, ok := other.(StrLine)
 	if !ok {
 		return false

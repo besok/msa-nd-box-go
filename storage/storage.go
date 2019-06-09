@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sync"
 )
 
@@ -16,18 +17,28 @@ type Storage struct {
 	mutex      sync.Mutex
 	memory     map[string]Lines
 	createFunc func() Lines
+	handler    ListenerHandler
 }
 
-func CreateStorage(p string, name string, createType func() Lines) (Storage, error) {
-	storage := Storage{p, name, sync.Mutex{}, make(map[string]Lines), createType}
-	storage, err := storage.creatStorageIfNotExists()
+func CreateStorage(p string, name string, createType func() Lines,listeners []Listener) (Storage, error) {
+	log.Printf("init storage, path: %s, storage: %s, type: %s\n", p, name, reflect.TypeOf(createType()))
+	handler :=CreateListenerHandler()
+	if len(listeners) > 0{
+		handler.listeners = listeners
+	}
+	storage := Storage{p,
+		name, sync.Mutex{}, make(map[string]Lines),
+		createType,
+		handler}
+	storage, err := storage.creatStorage()
 
 	if err != nil {
-		fmt.Printf(" error while creating path: %s , error: %s \n", name, err)
+		log.Fatalf(" error while creating path: %s , error: %s \n", name, err)
 		return storage, err
 	}
 
 	err = storage.readAllFiles(createType)
+	storage.handler.Handle(Init, StorageName(name), "", nil)
 	return storage, err
 }
 
@@ -35,6 +46,7 @@ func (s *Storage) Get(key string) (*Lines, bool) {
 	if lines, ok := s.memory[key]; ok {
 		return &lines, ok
 	}
+	s.handler.Handle(Get, StorageName(s.name), key, nil)
 	return nil, false
 }
 
@@ -43,17 +55,24 @@ func (s *Storage) Contains(key string) bool {
 	return ok
 }
 
+func (s *Storage) AddListener(listener Listener) bool {
+	s.handler.AddListener(listener)
+	return true
+}
 func (s *Storage) Put(key string, line Line) error {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	defer func() {
+		log.Printf("put value to a storage: %s, key: %s, value: %s \n", s.name, key, line)
+		s.handler.Handle(Put, StorageName(s.name), key, line)
+		s.mutex.Unlock()
+	}()
 	pathKey := s.storagePathKey(key)
-
 	lines, ok := s.memory[key]
 	if !ok {
 		lines := s.createFunc()
 		lines.Add(line)
 		if e := createFile(pathKey); e != nil {
-			fmt.Printf(" error while creating a file for key : %s", e)
+			log.Fatalf(" error while creating a file for key : %s", e)
 		}
 		s.memory[key] = lines
 	} else {
@@ -64,13 +83,65 @@ func (s *Storage) Put(key string, line Line) error {
 	return rewriteFile(pathKey, s.memory[key])
 }
 
+func (s *Storage) RemoveKey(key string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	pathKey := s.storagePathKey(key)
+	delete(s.memory, key)
+	log.Printf("remove key at a storage: %s, key: %s\n", s.name, key)
+	s.handler.Handle(RemoveKey, StorageName(s.name), key, nil)
+	return os.Remove(pathKey)
+}
+
+func (s *Storage) RemoveValue(key string, line Line) error {
+	s.mutex.Lock()
+	needUnlock := true
+	defer func() {
+		if needUnlock {
+			s.mutex.Unlock()
+		}
+
+		s.handler.Handle(RemoveVal, StorageName(s.name), key, line)
+		log.Printf("remove value at a storage: %s, key: %s, value: %s \n", s.name, key, line)
+	}()
+
+	lines, ok := s.memory[key]
+	if !ok {
+		return nil
+	}
+	ok = lines.Remove(line)
+	if !ok {
+		return nil
+	}
+
+	if lines.Size() == 0 {
+		s.mutex.Unlock()
+		needUnlock = false
+		return s.RemoveKey(key)
+	}
+
+	s.memory[key] = lines
+	return rewriteFile(s.storagePathKey(key), lines)
+}
+func (s *Storage) Clean() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.memory = make(map[string]Lines)
+	strPath := s.storagePath()
+	err := os.RemoveAll(strPath)
+	err = createDir(strPath)
+	log.Printf("clean storage: %s \n", s.name)
+		s.handler.Handle(Clean, StorageName(s.name),"",nil)
+	return err
+}
+
 func (s *Storage) readAllFiles(createType func() Lines) error {
 	p := s.storagePath()
 	err := filepath.Walk(p, func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
-			records, err := readRawFromFile(path)
+			records, err := readFile(path)
 			if err != nil {
-				fmt.Printf(" error while pasing path: %s , error: %s \n", path, err)
+				log.Fatalf(" error while pasing path: %s , error: %s \n", path, err)
 			}
 			lines := createType()
 			lines.fromString(records)
@@ -80,7 +151,7 @@ func (s *Storage) readAllFiles(createType func() Lines) error {
 	})
 
 	if err != nil {
-		fmt.Printf(" error while pasing path: %s , error: %s \n", s.storagePath(), err)
+		log.Fatalf(" error while pasing path: %s , error: %s \n", s.storagePath(), err)
 	}
 	return err
 }
@@ -90,8 +161,7 @@ func (s *Storage) storagePath() string {
 func (s *Storage) storagePathKey(key string) string {
 	return path.Join(s.path, s.name, key)
 }
-
-func (s *Storage) creatStorageIfNotExists() (Storage, error) {
+func (s *Storage) creatStorage() (Storage, error) {
 	err := createDir(s.path)
 	err = createDir(s.storagePath())
 	return *s, err
@@ -102,15 +172,15 @@ func createDir(path string) error {
 			log.Fatalf(" error while creating path: %s , error: %s \n", path, err)
 			return err
 		}
-		log.Fatalf(" dir created  path: %s \n", path)
+		log.Printf(" dir created  path: %s \n", path)
 	}
 	return nil
 }
-func readRawFromFile(p string) (Records, error) {
+func readFile(p string) (Records, error) {
 	lines := make([]string, 0)
 	file, e := os.Open(p)
 	if e != nil {
-		fmt.Printf(" error while reading file: %s , error: %s \n", p, e)
+		log.Fatalf(" error while reading file: %s , error: %s \n", p, e)
 		return nil, e
 	}
 	defer file.Close()
@@ -122,7 +192,7 @@ func readRawFromFile(p string) (Records, error) {
 	}
 
 	if e = scanner.Err(); e != nil {
-		fmt.Printf(" error while reading file: %s , error: %s \n", p, e)
+		log.Fatalf(" error while reading file: %s , error: %s \n", p, e)
 		return nil, e
 	}
 
@@ -130,7 +200,11 @@ func readRawFromFile(p string) (Records, error) {
 }
 func createFile(path string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		_, err := os.Create(path)
+		f, err := os.Create(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
 		return err
 	}
 	return nil
@@ -145,19 +219,16 @@ func rewriteFile(path string, lines Lines) error {
 	if err != nil {
 		return err
 	}
-
 	defer file.Close()
-
-	if lines == nil {
-		return nil
-	}
 
 	records := lines.ToString()
 	wr := bufio.NewWriter(file)
 	for _, r := range records {
 		if _, err := fmt.Fprintln(wr, r); err != nil {
-			fmt.Printf("error while writting file: %s", err)
+			log.Fatalf("error while writting file: %s", err)
 		}
 	}
-	return wr.Flush()
+	err = wr.Flush()
+	err = file.Sync()
+	return err
 }

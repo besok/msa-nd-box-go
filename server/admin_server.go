@@ -2,28 +2,42 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"msa-nd-box-go/message"
+	"msa-nd-box-go/storage"
 	"net/http"
 )
 
-func AdminServer()  {
-	registerService()
-	_= http.ListenAndServe(":9000", nil)
+
+type AdminServer struct {
+	storage.Storage
 }
 
-func registerService() {
-	http.HandleFunc("/register", registerServiceHandler)
+
+func CreateAdminServer(serviceRegistryStorage string,listeners... storage.Listener){
+	str, err := storage.CreateStorage(serviceRegistryStorage, "service_registry_storage",
+		storage.CreateStringLines,listeners)
+	if err != nil {
+		panic(err)
+	}
+
+	server := AdminServer{str}
+
+	http.HandleFunc("/register", server.registerServiceHandler)
+	_ = http.ListenAndServe(":9000", nil)
 }
 
-func registerServiceHandler(writer http.ResponseWriter, request *http.Request) {
+func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request *http.Request) {
 	decoder := json.NewDecoder(request.Body)
 	var sm message.ServerMessage
 	err := decoder.Decode(&sm)
 	if err != nil {
-		fmt.Printf(" error %s while parsing json %s \n", err, request.Body)
+		log.Fatalf(" error %s while parsing json %s \n", err, request.Body)
 		return
 	}
-	fmt.Printf("got message from server: %s and address %s \n", sm.Service.Service, sm.Service.Address)
-
+	log.Printf("got message from server: %s and address %s \n", sm.Service.Service, sm.Service.Address)
+	err = a.Put(sm.Service.Service, storage.StringLine{Value: sm.Service.Address})
+	if err != nil {
+		log.Fatalf(" error:%s, saving at storage", err)
+	}
 }

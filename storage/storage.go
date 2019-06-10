@@ -20,6 +20,10 @@ type Storage struct {
 	handler    ListenerHandler
 }
 
+func CreateStorageOnly(p string, name string, createType func() Lines)(Storage, error){
+	return CreateStorage(p,name,createType,make([]Listener,0))
+}
+
 func CreateStorage(p string, name string, createType func() Lines,listeners []Listener) (Storage, error) {
 	log.Printf("init storage, path: %s, storage: %s, type: %s\n", p, name, reflect.TypeOf(createType()))
 	handler :=CreateListenerHandler()

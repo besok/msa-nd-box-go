@@ -8,23 +8,20 @@ import (
 	"net/http"
 )
 
-
 type AdminServer struct {
 	storage.Storage
 }
 
-
-func CreateAdminServer(serviceRegistryStorage string,listeners... storage.Listener){
+func CreateAdminServer(port string, serviceRegistryStorage string, listeners ...storage.Listener) {
 	str, err := storage.CreateStorage(serviceRegistryStorage, "service_registry_storage",
-		storage.CreateStringLines,listeners)
+		storage.CreateStringLines, listeners)
 	if err != nil {
 		panic(err)
 	}
 
 	server := AdminServer{str}
-
 	http.HandleFunc("/register", server.registerServiceHandler)
-	_ = http.ListenAndServe(":9000", nil)
+	_ = http.ListenAndServe(port, nil)
 }
 
 func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request *http.Request) {

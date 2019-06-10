@@ -10,7 +10,7 @@ import (
 func TestCreatStorageIfNotExists(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	storage := "test_storage"
-	if _, err := CreateStorage(commonPath, storage, CreateStringLines); err != nil {
+	if _, err := CreateStorageOnly(commonPath, storage, CreateStringLines); err != nil {
 		t.Fatalf("don't expected error : %s \n", err)
 	}
 }
@@ -19,7 +19,7 @@ func TestStorage_Put(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	storage := "test_storage"
 
-	s, err := CreateStorage(commonPath, storage, CreateStringLines)
+	s, err := CreateStorageOnly(commonPath, storage, CreateStringLines)
 	if err != nil {
 		t.Fatalf("don't expected error : %s \n", err)
 	}
@@ -40,7 +40,7 @@ func TestStorage_RemoveKey(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	storage := "test_storage"
 
-	s, err := CreateStorage(commonPath, storage, CreateStringLines)
+	s, err := CreateStorageOnly(commonPath, storage, CreateStringLines)
 	if err != nil {
 		t.Fatalf("don't expected error : %s \n", err)
 	}
@@ -65,7 +65,7 @@ func TestStorage_RemoveValue(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	storage := "test_storage"
 
-	s, err := CreateStorage(commonPath, storage, CreateStringLines)
+	s, err := CreateStorageOnly(commonPath, storage, CreateStringLines)
 	if err != nil {
 		t.Fatalf("don't expected error : %s \n", err)
 	}
@@ -91,7 +91,7 @@ func TestStorage_RemoveValueAndFile(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	storage := "test_storage"
 
-	s, err := CreateStorage(commonPath, storage, CreateStringLines)
+	s, err := CreateStorageOnly(commonPath, storage, CreateStringLines)
 	if err != nil {
 		t.Fatalf("don't expected error : %s \n", err)
 	}
@@ -114,7 +114,7 @@ func TestStorage_Clean(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	storage := "test_storage"
 
-	s, err := CreateStorage(commonPath, storage, CreateStringLines)
+	s, err := CreateStorageOnly(commonPath, storage, CreateStringLines)
 	if err != nil {
 		t.Fatalf("don't expected error : %s \n", err)
 	}
@@ -136,7 +136,7 @@ func TestStorage_Handler(t *testing.T) {
 	commonPath := "C:\\projects\\msa-nd-box-go\\file_storages"
 	str := "test_storage"
 
-	s, err := CreateStorage(commonPath, str, CreateStringLines)
+	s, err := CreateStorageOnly(commonPath, str, CreateStringLines)
 	if err != nil {
 		t.Fatalf("don't expected error : %s \n", err)
 	}

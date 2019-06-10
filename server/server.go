@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"msa-nd-box-go/message"
 	"net"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 )
 
 func StartAndRegisterItself(service string) {
-	fmt.Printf("service %s is starting at ", service)
 
 	port := fmt.Sprintf("localhost:%d", findNextPort())
 	sm := message.ServerMessage{Service: message.Service{Address: port, Service: service}}
@@ -21,6 +21,7 @@ func StartAndRegisterItself(service string) {
 	if err != nil {
 		os.Exit(1)
 	}
+	log.Printf("service %s is starting at %s /n", service,port)
 	fmt.Println(http.ListenAndServe(sm.Service.Address, nil))
 }
 

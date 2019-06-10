@@ -12,7 +12,7 @@ type AdminServer struct {
 	storage.Storage
 }
 
-func CreateAdminServer(port string, serviceRegistryStorage string, listeners ...storage.Listener) {
+func CreateAdminServer( serviceRegistryStorage string, listeners ...storage.Listener) {
 	str, err := storage.CreateStorage(serviceRegistryStorage, "service_registry_storage",
 		storage.CreateStringLines, listeners)
 	if err != nil {
@@ -21,7 +21,7 @@ func CreateAdminServer(port string, serviceRegistryStorage string, listeners ...
 
 	server := AdminServer{str}
 	http.HandleFunc("/register", server.registerServiceHandler)
-	_ = http.ListenAndServe(port, nil)
+	_ = http.ListenAndServe(":9000", nil)
 }
 
 func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request *http.Request) {

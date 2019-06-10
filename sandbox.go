@@ -2,28 +2,21 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
 func main() {
-
-	go spinner(100*time.Millisecond)
-	fibN := fib(45)
-	fmt.Printf("\rFibonacci(%d) = %d\n", 45, fibN)
-}
-
-func spinner(delay time.Duration) {
-	for {
-		for _, r := range `-\|/` {
-			fmt.Printf("\r%c", r)
-			time.Sleep(delay)
-		}
+	ch := make(chan int)
+	s := 0
+	for i := 0; i < 20; i++ {
+		go func(ch chan int) {
+			//time.Sleep(time.Second*1)
+			ch <- 10
+		}(ch)
 	}
-}
 
-func fib(x int) int {
-	if x < 2 {
-		return x
+	for i:=0; i< 20; i++{
+		el := <-ch
+		s+=el
 	}
-	return fib(x-1) + fib(x-2)
+	fmt.Println(s)
 }

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -20,14 +21,29 @@ type Storage struct {
 	handler    ListenerHandler
 }
 
-func CreateStorageOnly(p string, name string, createType func() Lines)(Storage, error){
-	return CreateStorage(p,name,createType,make([]Listener,0))
+func Snapshot(s *Storage) string {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	var b bytes.Buffer
+	b.WriteString(fmt.Sprintf("storage[%s] snapshot:\n", s.name))
+	for k, v := range s.memory {
+		records := v.ToString()
+		b.WriteString(fmt.Sprintf("key: %s\n", k))
+		for i, l := range records {
+			b.WriteString(fmt.Sprintf("value[%d]: %s\n", i, l))
+		}
+	}
+	return b.String()
 }
 
-func CreateStorage(p string, name string, createType func() Lines,listeners []Listener) (Storage, error) {
+func CreateStorageOnly(p string, name string, createType func() Lines) (Storage, error) {
+	return CreateStorage(p, name, createType, make([]Listener, 0))
+}
+
+func CreateStorage(p string, name string, createType func() Lines, listeners []Listener) (Storage, error) {
 	log.Printf("init storage, path: %s, storage: %s, type: %s\n", p, name, reflect.TypeOf(createType()))
-	handler :=CreateListenerHandler()
-	if len(listeners) > 0{
+	handler := CreateListenerHandler()
+	if len(listeners) > 0 {
 		handler.listeners = listeners
 	}
 	storage := Storage{p,
@@ -46,9 +62,9 @@ func CreateStorage(p string, name string, createType func() Lines,listeners []Li
 	return storage, err
 }
 
-func (s *Storage) Get(key string) (*Lines, bool) {
+func (s *Storage) Get(key string) (Lines, bool) {
 	if lines, ok := s.memory[key]; ok {
-		return &lines, ok
+		return lines, ok
 	}
 	s.handler.Handle(Get, StorageName(s.name), key, nil)
 	return nil, false
@@ -135,7 +151,7 @@ func (s *Storage) Clean() error {
 	err := os.RemoveAll(strPath)
 	err = createDir(strPath)
 	log.Printf("clean storage: %s \n", s.name)
-		s.handler.Handle(Clean, StorageName(s.name),"",nil)
+	s.handler.Handle(Clean, StorageName(s.name), "", nil)
 	return err
 }
 

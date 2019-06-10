@@ -5,7 +5,6 @@ import (
 )
 
 func main() {
-	server.CreateAdminServer(
-		":9000",
-		"C:\\projects\\msa-nd-box-go\\file_storages")
+	adminServer := server.CreateAdminServer("C:\\projects\\msa-nd-box-go\\file_storages")
+	adminServer.Start()
 }

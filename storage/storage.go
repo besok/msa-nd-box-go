@@ -18,29 +18,29 @@ type Storage struct {
 	mutex      sync.Mutex
 	memory     map[string]Lines
 	createFunc func() Lines
-	handler    ListenerHandler
+	handler    *ListenerHandler
 }
 
 func Snapshot(s *Storage) string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	var b bytes.Buffer
-	b.WriteString(fmt.Sprintf("storage[%s] snapshot:\n", s.name))
+	b.WriteString(fmt.Sprintf("storage[%s] snapshot, keys[%d]:\n", s.name,len(s.memory)))
 	for k, v := range s.memory {
 		records := v.ToString()
-		b.WriteString(fmt.Sprintf("key: %s\n", k))
+		b.WriteString(fmt.Sprintf("|> key: %s\n", k))
 		for i, l := range records {
-			b.WriteString(fmt.Sprintf("value[%d]: %s\n", i, l))
+			b.WriteString(fmt.Sprintf("| value[%d]: %s\n", i, l))
 		}
 	}
 	return b.String()
 }
 
-func CreateStorageOnly(p string, name string, createType func() Lines) (Storage, error) {
+func CreateStorageOnly(p string, name string, createType func() Lines) (*Storage, error) {
 	return CreateStorage(p, name, createType, make([]Listener, 0))
 }
 
-func CreateStorage(p string, name string, createType func() Lines, listeners []Listener) (Storage, error) {
+func CreateStorage(p string, name string, createType func() Lines, listeners []Listener) (*Storage, error) {
 	log.Printf("init storage, path: %s, storage: %s, type: %s\n", p, name, reflect.TypeOf(createType()))
 	handler := CreateListenerHandler()
 	if len(listeners) > 0 {
@@ -49,21 +49,22 @@ func CreateStorage(p string, name string, createType func() Lines, listeners []L
 	storage := Storage{p,
 		name, sync.Mutex{}, make(map[string]Lines),
 		createType,
-		handler}
-	storage, err := storage.creatStorage()
+		&handler}
+	str, err := storage.creatStorage()
 
 	if err != nil {
 		log.Fatalf(" error while creating path: %s , error: %s \n", name, err)
-		return storage, err
+		return str, err
 	}
 
 	err = storage.readAllFiles(createType)
 	storage.handler.Handle(Init, StorageName(name), "", nil)
-	return storage, err
+	return str, err
 }
 
 func (s *Storage) Get(key string) (Lines, bool) {
 	if lines, ok := s.memory[key]; ok {
+		s.handler.Handle(Get, StorageName(s.name), key, nil)
 		return lines, ok
 	}
 	s.handler.Handle(Get, StorageName(s.name), key, nil)
@@ -181,10 +182,10 @@ func (s *Storage) storagePath() string {
 func (s *Storage) storagePathKey(key string) string {
 	return path.Join(s.path, s.name, key)
 }
-func (s *Storage) creatStorage() (Storage, error) {
+func (s *Storage) creatStorage() (*Storage, error) {
 	err := createDir(s.path)
 	err = createDir(s.storagePath())
-	return *s, err
+	return s, err
 }
 func createDir(path string) error {
 	if _, e := os.Stat(path); os.IsNotExist(e) {

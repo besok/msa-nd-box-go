@@ -9,11 +9,11 @@ import (
 )
 
 type AdminServer struct {
-	storage.Storage
+	*storage.Storage
 	serverMux *http.ServeMux
 }
 
-func CreateAdminServer( serviceRegistryStorage string, listeners ...storage.Listener) *AdminServer {
+func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Listener) *AdminServer {
 	str, err := storage.CreateStorage(serviceRegistryStorage, "service_registry_storage",
 		storage.CreateStringLines, listeners)
 	if err != nil {
@@ -25,10 +25,12 @@ func CreateAdminServer( serviceRegistryStorage string, listeners ...storage.List
 	return &server
 }
 
-func (a *AdminServer) Start(){
-	_ = http.ListenAndServe(":9000", nil)
-}
+func (a *AdminServer) Start() {
+	log.Println("start the admin server ")
+	log.Println(storage.Snapshot(a.Storage))
 
+	_ = http.ListenAndServe(":9000", a.serverMux)
+}
 
 func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request *http.Request) {
 	decoder := json.NewDecoder(request.Body)

@@ -8,7 +8,6 @@ import (
 	"msa-nd-box-go/message"
 	"net"
 	"net/http"
-	"os"
 )
 
 func StartAndRegisterItself(service string) {
@@ -17,12 +16,17 @@ func StartAndRegisterItself(service string) {
 	sm := message.ServerMessage{Service: message.Service{Address: port, Service: service}}
 	buffer := new(bytes.Buffer)
 	_ = json.NewEncoder(buffer).Encode(sm)
-	_, err := http.Post("http://localhost:9000/register", "application/json; charset=utf-8", buffer)
+	b, err := http.Post("http://localhost:9000/register", "application/json; charset=utf-8", buffer)
 	if err != nil {
-		os.Exit(1)
+		log.Printf("service %s can't start at %s, because error: %s ",service,port,err)
+		panic(err)
 	}
-	log.Printf("service %s is starting at %s /n", service,port)
-	fmt.Println(http.ListenAndServe(sm.Service.Address, nil))
+	if b.StatusCode != 200 {
+		log.Printf("service %s can't start at %s, because status:%s, code:%d",service,port,b.Status,b.StatusCode)
+		panic(err)
+	}
+	log.Printf("service %s is starting at %s \n", service,port)
+	log.Println(http.ListenAndServe(sm.Service.Address, nil))
 }
 
 func findNextPort() int {
@@ -32,7 +36,6 @@ func findNextPort() int {
 		prt := fmt.Sprintf(":%d", port)
 		_, err := net.Listen("tcp", prt)
 		if err == nil {
-			fmt.Printf(" %s \n", prt)
 			return port
 		}
 	}

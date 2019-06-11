@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"fmt"
 	"msa-nd-box-go/server"
 	"msa-nd-box-go/storage"
 	"testing"
@@ -9,26 +8,34 @@ import (
 )
 
 func TestServiceRegistry(t *testing.T) {
-	storagePath := "C:\\projects\\msa-nd-box-go\\file_storages"
 
-	adminServer := server.CreateAdminServer(storagePath)
 	second := time.Second
+	ch := make(chan int, 10)
 
-	go adminServer.Start()
+	go func(chan int) {
+		adminServer := server.CreateAdminServer("C:\\projects\\msa-nd-box-go\\file_storages",
+			func(event storage.StorageEvent, storageName storage.StorageName, key string, value storage.Line) {
+				if event == storage.Put {
+					ch <- 1
+				}
+			})
+
+		adminServer.Start()
+	}(ch)
+
 	time.Sleep(1 * second)
-	serviceName := "service_test"
-	go server.StartAndRegisterItself(serviceName)
-	go server.StartAndRegisterItself(serviceName)
-	go server.StartAndRegisterItself(serviceName)
-	time.Sleep(3 * second)
 
-	str := &adminServer.Storage
-	snapshot := storage.Snapshot(str)
-	fmt.Println(snapshot)
-	if lines, ok := str.Get(serviceName); ok {
-		if lines.Size() < 3 {
-			t.Fatalf(" should be 3 services")
-		}
+	service := "service_test"
+	for i := 0; i < 10; i++ {
+		go server.StartAndRegisterItself(service)
+	}
+	time.Sleep(5 * second)
+	el := 0
+	for i := 0; i < 10; i++ {
+		el += <-ch
 	}
 
+	if el < 10 {
+		t.Fatal(" el must be = 10")
+	}
 }

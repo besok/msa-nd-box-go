@@ -48,6 +48,12 @@ type Lines interface {
 	Size() int
 }
 
+
+
+func CreateEmptyLines() *Lines {
+	return new(Lines)
+}
+
 func CreateEmptyRecords() Records {
 	return make(Records, 0)
 }

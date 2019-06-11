@@ -13,6 +13,7 @@ type AdminServer struct {
 	serverMux *http.ServeMux
 }
 
+
 func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Listener) *AdminServer {
 	str, err := storage.CreateStorage(serviceRegistryStorage, "service_registry_storage",
 		storage.CreateStringLines, listeners)

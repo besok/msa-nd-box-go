@@ -7,11 +7,12 @@ import (
 )
 
 func TestGaugeStore_Take(t *testing.T) {
-	store := CreateGaugeStore(message.Service{
-		Service: "Test", Address: "1",
-	})
+	store := CreateGaugeStore()
 
 	store.AddGauge(Pulse{})
-	mes := store.Take()
+	mes := store.Take(message.Service{
+		Service: "Test", Address: "1",
+	})
 	fmt.Println(mes)
 }
+

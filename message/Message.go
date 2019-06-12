@@ -36,8 +36,11 @@ type GetServiceAllMessage struct {
 	Services []Service
 }
 
-type Metrics map[string]string
-
+type Metrics map[string]Metric
+type Metric struct {
+	Value string
+	Error error
+}
 type MetricsMessage struct {
 	Message
 	Metrics
@@ -69,10 +72,10 @@ func CreateGetServiceMessage(service string, lines storage.Lines) GetServiceMess
 	}
 }
 
-func CreateMetricsMessage(service string, address string, status Status, metrics Metrics) MetricsMessage {
+func CreateMetricsMessage(service Service, status Status, metrics Metrics) MetricsMessage {
 	return MetricsMessage{
 		Message{
-			Status: status, From: Service{address, service},
+			Status: status, From: service,
 		},
 		metrics,
 	}

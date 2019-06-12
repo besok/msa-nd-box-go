@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,23 +9,43 @@ import (
 	"net/http"
 )
 
-func StartAndRegisterItself(service string) {
+type Server struct {
+	gaugeStore GaugeStore
+	service    message.Service
+	mux        *http.ServeMux
+	config     Config
+}
 
-	port := fmt.Sprintf("localhost:%d", findNextPort())
-	sm := message.ServerMessage{Service: message.Service{Address: port, Service: service}}
-	buffer := new(bytes.Buffer)
-	_ = json.NewEncoder(buffer).Encode(sm)
-	b, err := http.Post("http://localhost:9000/register", "application/json; charset=utf-8", buffer)
-	if err != nil {
-		log.Printf("service %s can't start at %s, because error: %s ",service,port,err)
-		panic(err)
+func (s *Server) TakeMetrics() message.MetricsMessage {
+	return s.gaugeStore.Take(s.service)
+}
+
+func CreateServer(serviceName string, config Config, gauges ...Gauge) *Server {
+	address := fmt.Sprintf(":%d", findNextPort())
+	store := CreateGaugeStore(gauges[:]...)
+	return &Server{
+		mux:        http.NewServeMux(),
+		service:    message.Service{Service: serviceName, Address: address},
+		gaugeStore: store,
+		config:     config,
 	}
-	if b.StatusCode != 200 {
-		log.Printf("service %s can't start at %s, because status:%s, code:%d",service,port,b.Status,b.StatusCode)
-		panic(err)
-	}
-	log.Printf("service %s is starting at %s \n", service,port)
-	log.Println(http.ListenAndServe(sm.Service.Address, nil))
+}
+
+func (s *Server) Start() {
+	defaultInitHandler().Handle(s)
+	log.Printf("service %s is starting \n", s.service)
+	s.mux.HandleFunc("/metrics", s.processMetrics)
+	s.mux.HandleFunc("/h", h)
+	log.Println(http.ListenAndServe(s.service.Address, s.mux))
+}
+
+func (s *Server) AddGauge(gauge Gauge) *Server {
+	s.gaugeStore.AddGauge(gauge)
+	return s
+}
+func (s *Server) AddParam(param Param, value string) *Server {
+	s.config.AddParam(param, value)
+	return s
 }
 
 func findNextPort() int {
@@ -34,9 +53,27 @@ func findNextPort() int {
 	for {
 		port++
 		prt := fmt.Sprintf(":%d", port)
-		_, err := net.Listen("tcp", prt)
+		c, err := net.Listen("tcp", prt)
 		if err == nil {
+			_ = c.Close()
 			return port
 		}
 	}
+}
+func (s *Server) processMetrics(writer http.ResponseWriter, request *http.Request) {
+	msg := s.TakeMetrics()
+	writer.Header().Set("Content-Type", "application/json")
+	js, e := json.Marshal(msg)
+	if e != nil {
+		writer.WriteHeader(500)
+		log.Fatalf("can not marshal json %s", msg)
+		return
+	}
+	writer.WriteHeader(200)
+	_, _ = writer.Write(js)
+	return
+}
+
+func h(writer http.ResponseWriter, r *http.Request) {
+	_, _ = writer.Write([]byte("hello"))
 }

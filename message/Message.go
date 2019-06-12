@@ -36,12 +36,19 @@ type GetServiceAllMessage struct {
 	Services []Service
 }
 
+type Metrics map[string]string
+
+type MetricsMessage struct {
+	Message
+	Metrics
+}
+
 func CreateGetServiceAllMessage(service string, lines storage.Lines) GetServiceAllMessage {
 	services := make([]Service, lines.Size())
 	records := lines.ToString()
 
 	for i, v := range records {
-		services[i] =Service{v, service}
+		services[i] = Service{v, service}
 	}
 
 	return GetServiceAllMessage{
@@ -59,5 +66,14 @@ func CreateGetServiceMessage(service string, lines storage.Lines) GetServiceMess
 		Message{
 			Status: Ready, From: Service{":9000", "admin-service"},
 		}, Service{Service: service, Address: records[r]},
+	}
+}
+
+func CreateMetricsMessage(service string, address string, status Status, metrics Metrics) MetricsMessage {
+	return MetricsMessage{
+		Message{
+			Status: status, From: Service{address, service},
+		},
+		metrics,
 	}
 }

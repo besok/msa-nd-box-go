@@ -63,6 +63,10 @@ func (a *AdminServer) fetchMetrics() {
 			if !ok {
 
 			}
+			addresses := lines.ToString()
+			for _,adr := range addresses{
+
+			}
 		}
 
 		time.Sleep(time.Second * 10)

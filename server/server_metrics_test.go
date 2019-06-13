@@ -7,9 +7,9 @@ import (
 )
 
 func TestGaugeStore_Take(t *testing.T) {
-	store := CreateGaugeStore()
+	store := createGaugeStore()
 
-	store.AddGauge(Pulse{})
+	store.AddGauge(Pulse)
 	mes := store.Take(message.Service{
 		Service: "Test", Address: "1",
 	})

@@ -80,6 +80,6 @@ func (s *Server) processMetrics(writer http.ResponseWriter, request *http.Reques
 	return
 }
 
-func h(writer http.ResponseWriter, r *http.Request) {
+func h(writer http.ResponseWriter, _ *http.Request) {
 	_, _ = writer.Write([]byte("hello"))
 }

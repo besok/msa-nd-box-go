@@ -6,13 +6,9 @@ import (
 	"reflect"
 )
 
-type Gauge interface {
-	Take() (string, string, error)
-}
+type Gauge func()(string, string, error)
 
-type Pulse struct{}
-
-func (Pulse) Take() (string, string, error) {
+func Pulse() (string, string, error) {
 	return "pulse", "1", nil
 }
 
@@ -20,7 +16,7 @@ type GaugeStore struct {
 	Gauges []Gauge
 }
 
-func CreateGaugeStore(gauges ...Gauge) GaugeStore {
+func createGaugeStore(gauges ...Gauge) GaugeStore {
 	if len(gauges) > 0 {
 		return GaugeStore{Gauges: gauges}
 	}
@@ -30,7 +26,7 @@ func CreateGaugeStore(gauges ...Gauge) GaugeStore {
 func (s *GaugeStore) Take(service message.Service) message.MetricsMessage {
 	metricsMap := make(map[string]message.Metric)
 	for _, g := range s.Gauges {
-		k, v, e := g.Take()
+		k, v, e := g()
 		metricsMap[k] = message.Metric{Value: v, Error:e}
 	}
 	return message.CreateMetricsMessage(service, message.Ready, metricsMap)

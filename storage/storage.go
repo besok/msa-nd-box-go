@@ -189,7 +189,7 @@ func (s *Storage) creatStorage() (*Storage, error) {
 }
 func createDir(path string) error {
 	if _, e := os.Stat(path); os.IsNotExist(e) {
-		if err := os.MkdirAll(path, os.ModePerm); err != nil {
+		if err := os.MkdirAll(path, os.ModeDir); err != nil {
 			log.Fatalf(" error while creating path: %s , error: %s \n", path, err)
 			return err
 		}
@@ -240,7 +240,13 @@ func rewriteFile(path string, lines Lines) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		e := file.Close()
+		if e != nil{
+			log.Fatalf("can not close the file %s",file.Name())
+		}
+
+	}()
 
 	records := lines.ToString()
 	wr := bufio.NewWriter(file)

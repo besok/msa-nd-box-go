@@ -22,6 +22,8 @@ type Config struct {
 	Params
 }
 
+var defaultConfig = Config{make(Params)}
+
 func (c *Config) AddParam(param Param, value string) {
 	log.Printf("param:%s, value:%s", param, value)
 	c.Params[Param(param)] = value
@@ -42,9 +44,7 @@ func (c *Config) String(param Param) (string, bool) {
 	return r, ok
 }
 
-type InitOperator interface {
-	Operate(server *Server) error
-}
+type InitOperator func(server *Server) error
 
 type InitHandler struct {
 	operators []InitOperator
@@ -53,17 +53,17 @@ type InitHandler struct {
 var defHandler = InitHandler{operators: make([]InitOperator, 0)}
 
 func defaultInitHandler() *InitHandler {
-	defHandler.operators = append(defHandler.operators, Discovery{})
+	defHandler.operators = append(defHandler.operators, discovery)
 	return &defHandler
 }
 func AddInitOperator(f func(server *Server) error){
-	defHandler.operators=append(defHandler.operators, operator)
+	defHandler.operators=append(defHandler.operators, f)
 }
 
 func (h *InitHandler) Handle(server *Server) {
 	for _, op := range h.operators {
 		log.Printf("init operator %s is starting ", reflect.TypeOf(op))
-		err := op.Operate(server)
+		err := op(server)
 		if err != nil {
 			log.Fatalf("init operator failed, error:%s ", err)
 		}
@@ -72,7 +72,7 @@ func (h *InitHandler) Handle(server *Server) {
 
 type Discovery struct{}
 
-func (Discovery) Operate(server *Server) error {
+func discovery(server *Server) error {
 	s, ok := server.config.String(DISCOVERY)
 	if !ok {
 		log.Printf("discovery does not need")

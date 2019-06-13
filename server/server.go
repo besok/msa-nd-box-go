@@ -14,29 +14,36 @@ type Server struct {
 	service    message.Service
 	mux        *http.ServeMux
 	config     Config
+	listener   *net.Listener
 }
 
 func (s *Server) TakeMetrics() message.MetricsMessage {
 	return s.gaugeStore.Take(s.service)
 }
 
-func CreateServer(serviceName string, config Config, gauges ...Gauge) *Server {
-	address := fmt.Sprintf(":%d", findNextPort())
-	store := CreateGaugeStore(gauges[:]...)
+func CreateServer(serviceName string, gauges ...Gauge) *Server {
+	port, li := findNextPort()
+	address := fmt.Sprintf(":%d", port)
+	store := createGaugeStore(gauges[:]...)
 	return &Server{
 		mux:        http.NewServeMux(),
 		service:    message.Service{Service: serviceName, Address: address},
 		gaugeStore: store,
-		config:     config,
+		config:     defaultConfig,
+		listener:   &li,
 	}
 }
 
 func (s *Server) Start() {
 	defaultInitHandler().Handle(s)
-	log.Printf("service %s is starting \n", s.service)
+	addr := s.service.Address
+	log.Printf("service %s is about to start \n", s.service)
 	s.mux.HandleFunc("/metrics", s.processMetrics)
 	s.mux.HandleFunc("/h", h)
-	log.Println(http.ListenAndServe(s.service.Address, s.mux))
+
+	srv := &http.Server{Addr: addr, Handler: s.mux}
+	li := *s.listener
+	_ = srv.Serve(li.(*net.TCPListener))
 }
 
 func (s *Server) AddGauge(gauge Gauge) *Server {
@@ -48,15 +55,14 @@ func (s *Server) AddParam(param Param, value string) *Server {
 	return s
 }
 
-func findNextPort() int {
+func findNextPort() (int, net.Listener) {
 	port := 30000
 	for {
 		port++
 		prt := fmt.Sprintf(":%d", port)
 		c, err := net.Listen("tcp", prt)
 		if err == nil {
-			_ = c.Close()
-			return port
+			return port, c
 		}
 	}
 }

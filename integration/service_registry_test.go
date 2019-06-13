@@ -3,7 +3,7 @@ package integration
 import (
 	"encoding/json"
 	"msa-nd-box-go/message"
-	"msa-nd-box-go/server"
+	. "msa-nd-box-go/server"
 	"msa-nd-box-go/storage"
 	"net/http"
 	"testing"
@@ -16,17 +16,22 @@ func TestServiceRegistry(t *testing.T) {
 	ch := make(chan int, 10)
 
 	go func(chan int) {
-		storagePath := "C:\\projects\\msa-nd-box-go\\file_storages"
-		server.CreateAdminServer(storagePath, putListener(ch)).Start()
+		storagePath := "C:\\projects\\msa-nd-box-go\\file_storage"
+		CreateAdminServer(storagePath, putListener(ch)).Start()
 	}(ch)
 
 	time.Sleep(1 * second)
 
-	service := "service_test"
+	service := "test_service"
 	for i := 0; i < 10; i++ {
-		go server.StartAndRegisterItself(service)
+		go func() {
+			server := CreateServer(service)
+			server.AddGauge(Pulse)
+			server.AddParam(DISCOVERY,"localhost:9000")
+			server.Start()
+		}()
 	}
-	time.Sleep(5 * second)
+	time.Sleep(10 * second)
 	el := 0
 	for i := 0; i < 10; i++ {
 		el += <-ch
@@ -37,8 +42,24 @@ func TestServiceRegistry(t *testing.T) {
 	}
 }
 func TestServiceDiscovery(t *testing.T) {
-	TestServiceRegistry(t)
-	resp, err := http.Get("http://localhost:9000/service/service_test/all")
+	second := time.Second
+
+	go CreateAdminServer("C:\\projects\\msa-nd-box-go\\file_storage", ).Start()
+
+
+	time.Sleep(1 * second)
+
+	service := "test_service"
+	for i := 0; i < 10; i++ {
+		go func() {
+			server := CreateServer(service)
+			server.AddGauge(Pulse)
+			server.AddParam(DISCOVERY,"localhost:9000")
+			server.Start()
+		}()
+	}
+	time.Sleep(10 * second)
+	resp, err := http.Get("http://localhost:9000/service/test_service/all")
 	if err != nil || resp.StatusCode != 200{
 		t.Fatalf("something goes wrong")
 	}
@@ -50,7 +71,7 @@ func TestServiceDiscovery(t *testing.T) {
 		t.Fatalf("something goes wrong")
 	}
 
-	if len(sm.Services) != 10 {
+	if len(sm.Services) < 10 {
 		t.Fatalf("something goes wrong")
 	}
 

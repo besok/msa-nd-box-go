@@ -13,8 +13,8 @@ import (
 )
 
 type Storage struct {
+	Name       string
 	path       string
-	name       string
 	mutex      sync.Mutex
 	memory     map[string]Lines
 	createFunc func() Lines
@@ -25,7 +25,7 @@ func Snapshot(s *Storage) string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	var b bytes.Buffer
-	b.WriteString(fmt.Sprintf("storage[%s] snapshot, keys[%d]:\n", s.name,len(s.memory)))
+	b.WriteString(fmt.Sprintf("storage[%s] snapshot, keys[%d]:\n", s.Name, len(s.memory)))
 	for k, v := range s.memory {
 		records := v.ToString()
 		b.WriteString(fmt.Sprintf("|> key: %s\n", k))
@@ -46,8 +46,8 @@ func CreateStorage(p string, name string, createType func() Lines, listeners []L
 	if len(listeners) > 0 {
 		handler.listeners = listeners
 	}
-	storage := Storage{p,
-		name, sync.Mutex{}, make(map[string]Lines),
+	storage := Storage{name,
+		p, sync.Mutex{}, make(map[string]Lines),
 		createType,
 		&handler}
 	str, err := storage.creatStorage()
@@ -64,10 +64,10 @@ func CreateStorage(p string, name string, createType func() Lines, listeners []L
 
 func (s *Storage) Get(key string) (Lines, bool) {
 	if lines, ok := s.memory[key]; ok {
-		s.handler.Handle(Get, StorageName(s.name), key, nil)
+		s.handler.Handle(Get, StorageName(s.Name), key, nil)
 		return lines, ok
 	}
-	s.handler.Handle(Get, StorageName(s.name), key, nil)
+	s.handler.Handle(Get, StorageName(s.Name), key, nil)
 	return nil, false
 }
 
@@ -83,8 +83,8 @@ func (s *Storage) AddListener(listener Listener) bool {
 func (s *Storage) Put(key string, line Line) error {
 	s.mutex.Lock()
 	defer func() {
-		log.Printf("put value to a storage: %s, key: %s, value: %s \n", s.name, key, line)
-		s.handler.Handle(Put, StorageName(s.name), key, line)
+		log.Printf("put value to a storage: %s, key: %s, value: %s \n", s.Name, key, line)
+		s.handler.Handle(Put, StorageName(s.Name), key, line)
 		s.mutex.Unlock()
 	}()
 	pathKey := s.storagePathKey(key)
@@ -109,8 +109,8 @@ func (s *Storage) RemoveKey(key string) error {
 	defer s.mutex.Unlock()
 	pathKey := s.storagePathKey(key)
 	delete(s.memory, key)
-	log.Printf("remove key at a storage: %s, key: %s\n", s.name, key)
-	s.handler.Handle(RemoveKey, StorageName(s.name), key, nil)
+	log.Printf("remove key at a storage: %s, key: %s\n", s.Name, key)
+	s.handler.Handle(RemoveKey, StorageName(s.Name), key, nil)
 	return os.Remove(pathKey)
 }
 
@@ -122,8 +122,8 @@ func (s *Storage) RemoveValue(key string, line Line) error {
 			s.mutex.Unlock()
 		}
 
-		s.handler.Handle(RemoveVal, StorageName(s.name), key, line)
-		log.Printf("remove value at a storage: %s, key: %s, value: %s \n", s.name, key, line)
+		s.handler.Handle(RemoveVal, StorageName(s.Name), key, line)
+		log.Printf("remove value at a storage: %s, key: %s, value: %s \n", s.Name, key, line)
 	}()
 
 	lines, ok := s.memory[key]
@@ -151,9 +151,20 @@ func (s *Storage) Clean() error {
 	strPath := s.storagePath()
 	err := os.RemoveAll(strPath)
 	err = createDir(strPath)
-	log.Printf("clean storage: %s \n", s.name)
-	s.handler.Handle(Clean, StorageName(s.name), "", nil)
+	log.Printf("clean storage: %s \n", s.Name)
+	s.handler.Handle(Clean, StorageName(s.Name), "", nil)
 	return err
+}
+
+func (s *Storage) Keys() []string {
+	m := s.memory
+	keys := make([]string, len(m))
+	i := 0
+	for k := range m {
+		keys[i] = k
+		i++
+	}
+	return keys
 }
 
 func (s *Storage) readAllFiles(createType func() Lines) error {
@@ -177,10 +188,10 @@ func (s *Storage) readAllFiles(createType func() Lines) error {
 	return err
 }
 func (s *Storage) storagePath() string {
-	return path.Join(s.path, s.name)
+	return path.Join(s.path, s.Name)
 }
 func (s *Storage) storagePathKey(key string) string {
-	return path.Join(s.path, s.name, key)
+	return path.Join(s.path, s.Name, key)
 }
 func (s *Storage) creatStorage() (*Storage, error) {
 	err := createDir(s.path)
@@ -242,8 +253,8 @@ func rewriteFile(path string, lines Lines) error {
 	}
 	defer func() {
 		e := file.Close()
-		if e != nil{
-			log.Fatalf("can not close the file %s",file.Name())
+		if e != nil {
+			log.Fatalf("can not close the file %s", file.Name())
 		}
 
 	}()

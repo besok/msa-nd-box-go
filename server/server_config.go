@@ -8,13 +8,13 @@ import (
 	"msa-nd-box-go/message"
 	"net/http"
 	"reflect"
+	"strconv"
 )
 
 type Param string
 
 const (
 	DISCOVERY Param = "discovery"
-	PULSE           = "pulse"
 )
 
 type Params map[Param]string
@@ -39,6 +39,21 @@ func (c *Config) Bool(param Param) bool {
 	}
 	return false
 }
+func (c *Config) Int(param Param) (int,bool) {
+	el, ok := c.Params[param]
+	if !ok {
+		return 0,ok
+	}
+
+	intV, err := strconv.Atoi(el)
+	if err != nil {
+		return 0, false
+	}
+	return intV, true
+}
+
+
+
 func (c *Config) String(param Param) (string, bool) {
 	r, ok := c.Params[param]
 	return r, ok
@@ -56,7 +71,7 @@ func defaultInitHandler() *InitHandler {
 	defHandler.operators = append(defHandler.operators, discovery)
 	return &defHandler
 }
-func AddInitOperator(f func(server *Server) error){
+func NewInitOperator(f func(server *Server) error){
 	defHandler.operators=append(defHandler.operators, f)
 }
 

@@ -41,7 +41,7 @@ func (s *Server) Start() {
 	s.mux.HandleFunc("/metrics", s.processMetrics)
 	s.mux.HandleFunc("/h", h)
 
-	srv := &http.Server{Addr: addr, Handler: s.mux}
+	srv := http.Server{Addr: addr, Handler: s.mux}
 	li := *s.listener
 	_ = srv.Serve(li.(*net.TCPListener))
 }
@@ -79,6 +79,8 @@ func (s *Server) processMetrics(writer http.ResponseWriter, request *http.Reques
 	_, _ = writer.Write(js)
 	return
 }
+
+
 
 func h(writer http.ResponseWriter, _ *http.Request) {
 	_, _ = writer.Write([]byte("hello"))

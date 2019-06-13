@@ -7,21 +7,40 @@ import (
 	"msa-nd-box-go/storage"
 	"net/http"
 	"strings"
+	"time"
+)
+
+type AdminParam struct {
+	Param
+}
+
+type Storages map[string]*storage.Storage
+
+const (
+	REGISTRY_STORAGE = "service_registry_storage"
 )
 
 type AdminServer struct {
-	*storage.Storage
+	storages  Storages
 	serverMux *http.ServeMux
+	config    Config
 }
 
+var defaultAdminConfig = Config{make(Params)}
+
 func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Listener) *AdminServer {
-	str, err := storage.CreateStorage(serviceRegistryStorage, "service_registry_storage",
+	str, err := storage.CreateStorage(serviceRegistryStorage, REGISTRY_STORAGE,
 		storage.CreateStringLines, listeners)
+
 	if err != nil {
 		panic(err)
 	}
 
-	server := AdminServer{str, http.NewServeMux()}
+	NewMetricHandler(ServiceDiscoveryPulse)
+
+	storages := make(Storages)
+	storages[REGISTRY_STORAGE] = str
+	server := AdminServer{storages, http.NewServeMux(), defaultAdminConfig}
 	server.serverMux.HandleFunc("/register", server.registerServiceHandler)
 	server.serverMux.HandleFunc("/service/", server.getServiceList)
 	return &server
@@ -29,9 +48,29 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 
 func (a *AdminServer) Start() {
 	log.Println("start the admin server ")
-	log.Println(storage.Snapshot(a.Storage))
+	log.Println(storage.Snapshot(a.storages[REGISTRY_STORAGE]))
 
 	_ = http.ListenAndServe(":9000", a.serverMux)
+}
+
+func (a *AdminServer) fetchMetrics() {
+	for {
+
+		str := a.storage(REGISTRY_STORAGE)
+		keys := str.Keys()
+		for _, k := range keys {
+			lines, ok := str.Get(k)
+			if !ok {
+
+			}
+		}
+
+		time.Sleep(time.Second * 10)
+	}
+}
+
+func (a *AdminServer) AddStorage(s *storage.Storage) {
+	a.storages[s.Name] = s
 }
 
 func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request *http.Request) {
@@ -43,7 +82,7 @@ func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request
 		return
 	}
 	log.Printf("got message from server: %s and address %s \n", sm.Service.Service, sm.Service.Address)
-	err = a.Put(sm.Service.Service, storage.StringLine{Value: sm.Service.Address})
+	err = a.storage(REGISTRY_STORAGE).Put(sm.Service.Service, storage.StringLine{Value: sm.Service.Address})
 	if err != nil {
 		log.Fatalf(" error:%s, saving at storage", err)
 	}
@@ -54,7 +93,7 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 
 	if strings.Contains(serviceName, "/all") {
 		serviceName = strings.TrimSuffix(serviceName, "/all")
-		lines, ok := a.Get(serviceName)
+		lines, ok := a.storage(REGISTRY_STORAGE).Get(serviceName)
 		if !ok {
 			writer.WriteHeader(404)
 			return
@@ -69,7 +108,7 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 		}
 
 	} else {
-		lines, ok := a.Get(serviceName)
+		lines, ok := a.storage(REGISTRY_STORAGE).Get(serviceName)
 		if !ok {
 			writer.WriteHeader(404)
 			return
@@ -84,4 +123,8 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 		}
 	}
 
+}
+
+func (a *AdminServer) storage(name string) *storage.Storage {
+	return a.storages[name]
 }

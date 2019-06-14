@@ -17,7 +17,7 @@ func TestServiceRegistry(t *testing.T) {
 
 	go func(chan int) {
 		storagePath := "C:\\projects\\msa-nd-box-go\\file_storage"
-		CreateAdminServer(storagePath, putListener(ch)).Start()
+		CreateAdminServer(storagePath, listenerPutOperation(ch)).Start()
 	}(ch)
 
 	time.Sleep(1 * second)
@@ -87,7 +87,7 @@ func TestServiceDiscovery(t *testing.T) {
 
 }
 
-func putListener(ch chan int) func(event storage.StorageEvent, storageName storage.StorageName, key string, value storage.Line) {
+func listenerPutOperation(ch chan int) func(event storage.StorageEvent, storageName storage.StorageName, key string, value storage.Line) {
 	return func(event storage.StorageEvent, storageName storage.StorageName, key string, value storage.Line) {
 		if event == storage.Put {
 			ch <- 1

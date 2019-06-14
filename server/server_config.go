@@ -39,10 +39,10 @@ func (c *Config) Bool(param Param) bool {
 	}
 	return false
 }
-func (c *Config) Int(param Param) (int,bool) {
+func (c *Config) Int(param Param) (int, bool) {
 	el, ok := c.Params[param]
 	if !ok {
-		return 0,ok
+		return 0, ok
 	}
 
 	intV, err := strconv.Atoi(el)
@@ -51,8 +51,6 @@ func (c *Config) Int(param Param) (int,bool) {
 	}
 	return intV, true
 }
-
-
 
 func (c *Config) String(param Param) (string, bool) {
 	r, ok := c.Params[param]
@@ -71,8 +69,8 @@ func defaultInitHandler() *InitHandler {
 	defHandler.operators = append(defHandler.operators, discovery)
 	return &defHandler
 }
-func NewInitOperator(f func(server *Server) error){
-	defHandler.operators=append(defHandler.operators, f)
+func NewInitOperator(f func(server *Server) error) {
+	defHandler.operators = append(defHandler.operators, f)
 }
 
 func (h *InitHandler) Handle(server *Server) {
@@ -99,9 +97,10 @@ func discovery(server *Server) error {
 	b, err := http.Post(fmt.Sprintf("http://%s/register", s), "application/json; charset=utf-8", buffer)
 	if err != nil {
 		log.Printf("service %s can't start, because error: %s ", server.service, err)
-	}
-	if b.StatusCode != 200 {
-		log.Printf("service %s can't start , because status:%s, code:%d", server.service, b.Status, b.StatusCode)
+	} else {
+		if b.StatusCode != 200 {
+			log.Printf("service %s can't start , because status:%s, code:%d", server.service, b.Status, b.StatusCode)
+		}
 	}
 
 	return err

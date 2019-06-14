@@ -80,3 +80,13 @@ func CreateMetricsMessage(service Service, status Status, metrics Metrics) Metri
 		metrics,
 	}
 }
+func CreateMetricsMessageWithMetric(service Service, status Status, metricName string, metric Metric) MetricsMessage {
+	metrics := make(Metrics)
+	metrics[metricName] = metric
+	return MetricsMessage{
+		Message{
+			Status: status, From: service,
+		},
+		metrics,
+	}
+}

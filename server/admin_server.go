@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"msa-nd-box-go/message"
 	"msa-nd-box-go/storage"
@@ -36,11 +37,9 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 		panic(err)
 	}
 
-	NewMetricHandler(ServiceDiscoveryPulse)
-
-	storages := make(Storages)
-	storages[REGISTRY_STORAGE] = str
-	server := AdminServer{storages, http.NewServeMux(), defaultAdminConfig}
+	strs := make(Storages)
+	strs[REGISTRY_STORAGE] = str
+	server := AdminServer{strs, http.NewServeMux(), defaultAdminConfig}
 	server.serverMux.HandleFunc("/register", server.registerServiceHandler)
 	server.serverMux.HandleFunc("/service/", server.getServiceList)
 	return &server
@@ -49,28 +48,50 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 func (a *AdminServer) Start() {
 	log.Println("start the admin server ")
 	log.Println(storage.Snapshot(a.storages[REGISTRY_STORAGE]))
-
+	go a.fetchMetrics()
 	_ = http.ListenAndServe(":9000", a.serverMux)
 }
 
 func (a *AdminServer) fetchMetrics() {
-	for {
+	NewMetricHandler(ServiceDiscoveryPulse)
 
+	for {
 		str := a.storage(REGISTRY_STORAGE)
 		keys := str.Keys()
+
 		for _, k := range keys {
 			lines, ok := str.Get(k)
 			if !ok {
-
+				log.Printf("key %s has been removed\n", k)
 			}
 			addresses := lines.ToString()
-			for _,adr := range addresses{
-
+			for _, addr := range addresses {
+				r, err := http.Get(fmt.Sprintf("http://%s/metrics", addr))
+				var metricMessage message.MetricsMessage
+				if err != nil {
+					log.Printf("fetching metrics from the server:{%s,%s} has been finished with error: %s, \n", k, addr, err)
+					metricMessage = createFailedMetricMessage(k, addr, err)
+				} else {
+					decoder := json.NewDecoder(r.Body)
+					err := decoder.Decode(&metricMessage)
+					if err != nil {
+						log.Printf("fetching metrics from the server:{%s,%s} has been finished with error: %s, \n", k, addr, err)
+						metricMessage = createFailedMetricMessage(k, addr, err)
+					}
+				}
+				HandleMetrics(a, metricMessage)
 			}
 		}
 
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 5)
 	}
+}
+
+func createFailedMetricMessage(service string, addr string, err error) message.MetricsMessage {
+	return message.CreateMetricsMessageWithMetric(
+		message.Service{Service: service, Address: addr},
+		message.Failed,
+		"pulse", message.Metric{Value: "", Error: err})
 }
 
 func (a *AdminServer) AddStorage(s *storage.Storage) {

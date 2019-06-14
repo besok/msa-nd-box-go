@@ -25,7 +25,12 @@ func Snapshot(s *Storage) string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	var b bytes.Buffer
-	b.WriteString(fmt.Sprintf("storage[%s] snapshot, keys[%d]:\n", s.Name, len(s.memory)))
+	len := len(s.memory)
+	if len == 0 {
+		b.WriteString(fmt.Sprintf("storage[%s] snapshot, storage is empty.\n", s.Name))
+		return b.String()
+	}
+	b.WriteString(fmt.Sprintf("storage[%s] snapshot, keys[%d]:\n", s.Name, len))
 	for k, v := range s.memory {
 		records := v.ToString()
 		b.WriteString(fmt.Sprintf("|> key: %s\n", k))

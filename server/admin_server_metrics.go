@@ -28,13 +28,20 @@ func HandleMetrics(a *AdminServer, metricsMessage message.MetricsMessage) {
 
 func ServiceDiscoveryPulse(a *AdminServer, message message.MetricsMessage) error {
 	metrics := message.Metrics
-	metric := metrics["pulse"]
+	metric,ok := metrics["pulse"]
+
+	if !ok{
+		service := message.From
+		log.Printf("service:%s does not have pulse. It needs to be removed", service)
+		str := a.storages[REGISTRY_STORAGE]
+		return str.RemoveValue(service.Service, storage.StringLine{Value: service.Address})
+	}
+
 	if metric.Error != nil {
 		service := message.From
 		log.Printf("service:%s does not have pulse. It needs to be removed", service)
 		str := a.storages[REGISTRY_STORAGE]
-		return str.RemoveValue(service.Service,
-			storage.StringLine{Value: service.Address})
+		return str.RemoveValue(service.Service, storage.StringLine{Value: service.Address})
 	}
 	return nil
 }

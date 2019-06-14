@@ -34,6 +34,11 @@ func CreateServer(serviceName string, gauges ...Gauge) *Server {
 	}
 }
 
+func (s *Server) AddHandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	log.Printf("server:%s, add new hanler: %s ",s.service,pattern)
+	s.mux.HandleFunc(pattern,handler)
+}
+
 func (s *Server) Start() {
 	defaultInitHandler().Handle(s)
 	addr := s.service.Address

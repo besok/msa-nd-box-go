@@ -34,18 +34,23 @@ func CreateServer(serviceName string, gauges ...Gauge) *Server {
 	}
 }
 
+func NewInitOperator(f func(server *Server) error) {
+	defHandler.operators = append(defHandler.operators, f)
+}
+
+
 func (s *Server) AddHandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
 	log.Printf("server:%s, add new hanler: %s ",s.service,pattern)
 	s.mux.HandleFunc(pattern,handler)
 }
 
 func (s *Server) Start() {
-	defaultInitHandler().Handle(s)
+	defaultInitHandler().handle(s)
+
 	addr := s.service.Address
 	log.Printf("service %s is about to start \n", s.service)
-	s.mux.HandleFunc("/metrics", s.processMetrics)
-	s.mux.HandleFunc("/h", h)
 
+	s.mux.HandleFunc("/metrics", s.processMetrics)
 	srv := http.Server{Addr: addr, Handler: s.mux}
 	li := *s.listener
 	_ = srv.Serve(li.(*net.TCPListener))
@@ -56,7 +61,7 @@ func (s *Server) AddGauge(gauge Gauge) *Server {
 	return s
 }
 func (s *Server) AddParam(param Param, value string) *Server {
-	s.config.AddParam(param, value)
+	s.config.addParam(param, value)
 	return s
 }
 
@@ -85,8 +90,3 @@ func (s *Server) processMetrics(writer http.ResponseWriter, request *http.Reques
 	return
 }
 
-
-
-func h(writer http.ResponseWriter, _ *http.Request) {
-	_, _ = writer.Write([]byte("hello"))
-}

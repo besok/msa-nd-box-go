@@ -24,7 +24,7 @@ type Config struct {
 
 var defaultConfig = Config{make(Params)}
 
-func (c *Config) AddParam(param Param, value string) {
+func (c *Config) addParam(param Param, value string) {
 	log.Printf("param:%s, value:%s", param, value)
 	c.Params[Param(param)] = value
 }
@@ -69,11 +69,8 @@ func defaultInitHandler() *InitHandler {
 	defHandler.operators = append(defHandler.operators, discovery)
 	return &defHandler
 }
-func NewInitOperator(f func(server *Server) error) {
-	defHandler.operators = append(defHandler.operators, f)
-}
 
-func (h *InitHandler) Handle(server *Server) {
+func (h *InitHandler) handle(server *Server) {
 	for _, op := range h.operators {
 		log.Printf("init operator %s is starting ", reflect.TypeOf(op))
 		err := op(server)
@@ -83,7 +80,6 @@ func (h *InitHandler) Handle(server *Server) {
 	}
 }
 
-type Discovery struct{}
 
 func discovery(server *Server) error {
 	s, ok := server.config.String(DISCOVERY)

@@ -18,7 +18,8 @@ type AdminParam struct {
 type Storages map[string]*storage.Storage
 
 const (
-	REGISTRY_STORAGE = "service_registry_storage"
+	REGISTRY_STORAGE        = "service_registry_storage"
+	CIRCUIT_BREAKER_STORAGE = "circuit_breaker_storage"
 )
 
 type AdminServer struct {
@@ -30,30 +31,46 @@ type AdminServer struct {
 var defaultAdminConfig = Config{make(Params)}
 
 func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Listener) *AdminServer {
-	str, err := storage.CreateStorage(serviceRegistryStorage, REGISTRY_STORAGE,
-		storage.CreateStringLines, listeners)
-
-	if err != nil {
-		panic(err)
-	}
-
-	strs := make(Storages)
-	strs[REGISTRY_STORAGE] = str
+	strs := createDefaultStorages(serviceRegistryStorage, listeners...)
 	server := AdminServer{strs, http.NewServeMux(), defaultAdminConfig}
 	server.serverMux.HandleFunc("/register", server.registerServiceHandler)
 	server.serverMux.HandleFunc("/service/", server.getServiceList)
 	return &server
 }
 
+func createDefaultStorages(path string, listeners ...storage.Listener) Storages {
+	strs := make(Storages)
+	strs[REGISTRY_STORAGE] = createStorage(path, REGISTRY_STORAGE, storage.CreateStringLines,listeners...)
+	strs[CIRCUIT_BREAKER_STORAGE] = createStorage(path, CIRCUIT_BREAKER_STORAGE,storage.CreateCBLines, listeners...)
+	return strs
+
+}
+
+func createStorage(path string, name string, f func() storage.Lines, listeners ...storage.Listener) *storage.Storage {
+	str, err := storage.CreateStorage(path, name, f, listeners)
+	if err != nil {
+		log.Printf("can not create storga: %s", name)
+		panic(err)
+	}
+	return str
+}
+
 func (a *AdminServer) Start() {
 	log.Println("start the admin server ")
-	log.Println(storage.Snapshot(a.storages[REGISTRY_STORAGE]))
+	a.snapshot()
 	go a.fetchMetrics()
 	_ = http.ListenAndServe(":9000", a.serverMux)
 }
 
+func (a *AdminServer) snapshot() {
+	for _, v := range a.storages {
+		log.Println(storage.Snapshot(v))
+	}
+}
+
 func (a *AdminServer) fetchMetrics() {
 	NewMetricHandler(ServiceDiscoveryPulse)
+	NewMetricHandler(CBHandler)
 
 	for {
 		str := a.storage(REGISTRY_STORAGE)

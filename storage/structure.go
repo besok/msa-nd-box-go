@@ -1,7 +1,10 @@
 package storage
 
 import (
+	"fmt"
 	"log"
+	"strconv"
+	"strings"
 )
 
 type StorageEvent string
@@ -46,6 +49,7 @@ type Lines interface {
 	Add(line Line) bool
 	Remove(line Line) bool
 	Size() int
+	// GET???
 }
 
 
@@ -59,6 +63,10 @@ func CreateEmptyRecords() Records {
 }
 func CreateStringLines() Lines {
 	return new(StringLines)
+}
+
+func CreateCBLines() Lines {
+	return new(CBLines)
 }
 
 // simple base impl
@@ -96,7 +104,7 @@ func (l *StringLines) Remove(line Line) bool {
 	return true
 }
 
-func (l *StringLines) Equal(left Line, right Line) bool {
+func (*StringLines) Equal(left Line, right Line) bool {
 	return left.Equal(right)
 }
 
@@ -130,4 +138,69 @@ func PrintLines(lines Lines) {
 	} else {
 		log.Println(" lines are a empty ")
 	}
+}
+
+type CBLine struct {
+	Address string
+	Active  bool
+}
+
+type CBLines struct {
+	lines []CBLine
+}
+
+func (l *CBLines) fromString(records Records) {
+	l.lines = make([]CBLine, len(records))
+	for i, v := range records {
+		res := strings.Split(v, "=")
+		flag := false
+		if res[1] == "true" {
+			flag = true
+		}
+		l.lines[i] = CBLine{Address: res[0], Active: flag}
+	}
+}
+
+func (l *CBLines) ToString() Records {
+	records := make([]string, l.Size())
+	for i, v := range l.lines {
+		records[i] = fmt.Sprintf("%s=%s", v.Address, strconv.FormatBool(v.Active))
+	}
+	return records
+}
+
+func (CBLines) Equal(left Line, right Line) bool {
+	return left.Equal(right)
+}
+
+func (l *CBLines) Add(line Line) bool {
+	l.lines = append(l.lines, line.(CBLine))
+	return true
+}
+
+func (l *CBLines) Remove(line Line) bool {
+	idx := -1
+	values := l.lines
+	for i, el := range values{
+		if l.Equal(el, line) {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return false
+	}
+	ln := len(values)
+	values[ln-1], values[idx] = values[idx], values[ln-1]
+	l.lines = values[:ln-1]
+	return true
+}
+
+func (l *CBLines) Size() int {
+	return len(l.lines)
+}
+
+func (v CBLine) Equal(other Line) bool {
+	otherV := other.(CBLine)
+	return v.Address == otherV.Address
 }

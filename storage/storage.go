@@ -27,7 +27,7 @@ func Snapshot(s *Storage) string {
 	var b bytes.Buffer
 	ln := len(s.memory)
 	if ln == 0 {
-		b.WriteString(fmt.Sprintf("storage[%s] snapshot, storage is empty.\n", s.Name))
+		b.WriteString(fmt.Sprintf("storage[%s] snapshot, storage is empty.", s.Name))
 		return b.String()
 	}
 	b.WriteString(fmt.Sprintf("storage[%s] snapshot, keys[%d]:\n", s.Name, ln))

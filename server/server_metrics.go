@@ -6,7 +6,16 @@ import (
 	"reflect"
 )
 
-type Gauge func()(string, string, error)
+type Gauge func() (string, string, error)
+
+func CircuitBreaker() (string, string, error) {
+	for _, v := range defCBProcessor.circuitBreakers {
+		if v.actual > v.expected {
+			return "cb", "false", nil
+		}
+	}
+	return "cb", "true", nil
+}
 
 func Pulse() (string, string, error) {
 	return "pulse", "1", nil
@@ -27,7 +36,7 @@ func (s *GaugeStore) Take(service message.Service) message.MetricsMessage {
 	metricsMap := make(map[string]message.Metric)
 	for _, g := range s.Gauges {
 		k, v, e := g()
-		metricsMap[k] = message.Metric{Value: v, Error:e}
+		metricsMap[k] = message.Metric{Value: v, Error: e}
 	}
 	return message.CreateMetricsMessage(service, message.Ready, metricsMap)
 }

@@ -45,3 +45,20 @@ func ServiceDiscoveryPulse(a *AdminServer, message message.MetricsMessage) error
 	}
 	return nil
 }
+func CBHandler(a *AdminServer, message message.MetricsMessage) error {
+	metrics := message.Metrics
+	metric, ok := metrics["cb"]
+	service := message.From
+	str := a.storage(CIRCUIT_BREAKER_STORAGE)
+
+	if !ok {
+		return str.RemoveValue(service.Service, storage.CBLine{Address: service.Address})
+	}
+
+	active := true
+	if metric.Error != nil || metric.Value != "true" {
+		active = false
+	}
+
+	return str.Put(service.Service, storage.CBLine{Address: service.Address, Active: active})
+}

@@ -11,12 +11,13 @@ import (
 	"strconv"
 )
 
-type Param string
 
 const (
 	DISCOVERY Param = "discovery"
+	CIRCUIT_BREAKER Param ="circuit_breaker"
 )
 
+type Param string
 type Params map[Param]string
 type Config struct {
 	Params
@@ -80,7 +81,6 @@ func (h *InitHandler) handle(server *Server) {
 	}
 }
 
-
 func discovery(server *Server) error {
 	s, ok := server.config.String(DISCOVERY)
 	if !ok {
@@ -92,10 +92,10 @@ func discovery(server *Server) error {
 	_ = json.NewEncoder(buffer).Encode(sm)
 	b, err := http.Post(fmt.Sprintf("http://%s/register", s), "application/json; charset=utf-8", buffer)
 	if err != nil {
-		log.Printf("service %s can't start, because error: %s ", server.service, err)
+		log.Fatalf("service %s can't start, because the admin server does not response,\n error: %s ", server.service, err)
 	} else {
 		if b.StatusCode != 200 {
-			log.Printf("service %s can't start , because status:%s, code:%d", server.service, b.Status, b.StatusCode)
+			log.Fatalf("service %s can't start , because the admin server does not response, status:%s, code:%d", server.service, b.Status, b.StatusCode)
 		}
 	}
 

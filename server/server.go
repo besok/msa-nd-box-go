@@ -7,7 +7,19 @@ import (
 	"msa-nd-box-go/message"
 	"net"
 	"net/http"
+	"time"
 )
+
+type handleFunc func(http.ResponseWriter, *http.Request)
+type cbValue struct {
+	expected int
+	actual   int
+}
+type CBProcessor struct {
+	circuitBreakers map[string]cbValue
+}
+
+var defCBProcessor CBProcessor = CBProcessor{make(map[string]cbValue)}
 
 type Server struct {
 	gaugeStore GaugeStore
@@ -15,10 +27,6 @@ type Server struct {
 	mux        *http.ServeMux
 	config     Config
 	listener   *net.Listener
-}
-
-func (s *Server) TakeMetrics() message.MetricsMessage {
-	return s.gaugeStore.Take(s.service)
 }
 
 func CreateServer(serviceName string, gauges ...Gauge) *Server {
@@ -32,16 +40,6 @@ func CreateServer(serviceName string, gauges ...Gauge) *Server {
 		config:     defaultConfig,
 		listener:   &li,
 	}
-}
-
-func NewInitOperator(f func(server *Server) error) {
-	defHandler.operators = append(defHandler.operators, f)
-}
-
-
-func (s *Server) AddHandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
-	log.Printf("server:%s, add new hanler: %s ",s.service,pattern)
-	s.mux.HandleFunc(pattern,handler)
 }
 
 func (s *Server) Start() {
@@ -65,6 +63,35 @@ func (s *Server) AddParam(param Param, value string) *Server {
 	return s
 }
 
+func NewInitOperator(f func(server *Server) error) {
+	defHandler.operators = append(defHandler.operators, f)
+}
+
+func (s *Server) AddHandler(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	log.Printf("server:%s, add new hanler: %s ", s.service, pattern)
+	s.mux.HandleFunc(pattern, handler)
+}
+func (s *Server) AddHandlerWithCircuitBreaker(pattern string, handler func(http.ResponseWriter, *http.Request), cbInSec int) {
+	log.Printf("server:%s, add new hanler : %s with circuit breaker: %d ", s.service, pattern, cbInSec)
+	if cbInSec < 0 {
+		cbInSec = 0
+	}
+	defCBProcessor.circuitBreakers[pattern] = cbValue{actual: 0, expected: cbInSec}
+	s.mux.HandleFunc(pattern,wrapWithCB(pattern,handler))
+}
+
+func wrapWithCB(pattern string, h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		nowTime := time.Now()
+		h(writer, request)
+		since := time.Since(nowTime) / time.Second
+		v := defCBProcessor.circuitBreakers[pattern]
+		v.actual = int(since)
+		defCBProcessor.circuitBreakers[pattern] = v
+		log.Printf("handler duration: %s", since)
+	}
+}
+
 func findNextPort() (int, net.Listener) {
 	port := 30000
 	for {
@@ -76,8 +103,13 @@ func findNextPort() (int, net.Listener) {
 		}
 	}
 }
+
+func (s *Server) takeMetrics() message.MetricsMessage {
+	return s.gaugeStore.Take(s.service)
+}
+
 func (s *Server) processMetrics(writer http.ResponseWriter, request *http.Request) {
-	msg := s.TakeMetrics()
+	msg := s.takeMetrics()
 	writer.Header().Set("Content-Type", "application/json")
 	js, e := json.Marshal(msg)
 	if e != nil {
@@ -89,4 +121,3 @@ func (s *Server) processMetrics(writer http.ResponseWriter, request *http.Reques
 	_, _ = writer.Write(js)
 	return
 }
-

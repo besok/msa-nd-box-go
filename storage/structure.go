@@ -7,20 +7,20 @@ import (
 	"strings"
 )
 
-type StorageEvent string
-type StorageName string
+type Event string
+type Name string
 
 const (
-	Put       StorageEvent = "Put"
-	Get                    = "Get"
-	GetValue               = "GetValue"
-	RemoveKey              = "RemoveKey"
-	RemoveVal              = "RemoveVal"
-	Init                   = "Init"
-	Clean                  = "Clean"
+	Put       Event = "Put"
+	Get             = "Get"
+	GetValue        = "GetValue"
+	RemoveKey       = "RemoveKey"
+	RemoveVal       = "RemoveVal"
+	Init            = "Init"
+	Clean           = "Clean"
 )
 
-type Listener func(event StorageEvent, storageName StorageName, key string, value Line)
+type Listener func(event Event, storageName Name, key string, value Line)
 type ListenerHandler struct {
 	listeners []Listener
 }
@@ -33,7 +33,7 @@ func (h *ListenerHandler) AddListener(l Listener) {
 	log.Println("add listener ")
 	h.listeners = append(h.listeners, l)
 }
-func (h *ListenerHandler) Handle(event StorageEvent, storage StorageName, key string, value Line) {
+func (h *ListenerHandler) Handle(event Event, storage Name, key string, value Line) {
 	for _, listener := range h.listeners {
 		listener(event, storage, key, value)
 	}
@@ -116,11 +116,10 @@ type StringLines struct {
 }
 
 func (l *StringLines) Get(idx int) (Line, bool) {
-	sz := len(l.Lines)
-	if idx > sz-1 || idx < 0 {
-		return nil,false
+	if idx > l.Size()-1 || idx < 0 {
+		return nil, false
 	}
-	return l.Lines[idx],true
+	return l.Lines[idx], true
 }
 
 func (l *StringLines) Size() int {
@@ -198,9 +197,9 @@ type CBLines struct {
 func (l *CBLines) Get(idx int) (Line, bool) {
 	sz := len(l.Lines)
 	if idx > sz-1 || idx < 0 {
-		return nil,false
+		return nil, false
 	}
-	return l.Lines[idx],true
+	return l.Lines[idx], true
 }
 
 func (l *CBLines) fromString(records Records) {

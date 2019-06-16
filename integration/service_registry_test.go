@@ -87,8 +87,8 @@ func TestServiceDiscovery(t *testing.T) {
 
 }
 
-func listenerPutOperation(ch chan int) func(event storage.StorageEvent, storageName storage.StorageName, key string, value storage.Line) {
-	return func(event storage.StorageEvent, storageName storage.StorageName, key string, value storage.Line) {
+func listenerPutOperation(ch chan int) func(event storage.Event, storageName storage.Name, key string, value storage.Line) {
+	return func(event storage.Event, storageName storage.Name, key string, value storage.Line) {
 		if event == storage.Put {
 			ch <- 1
 		}

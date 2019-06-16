@@ -1,17 +1,15 @@
 package main
 
 import (
-	"msa-nd-box-go/server"
+	. "msa-nd-box-go/server"
 	"net/http"
 	"time"
 )
 
 func main() {
-	serv := server.CreateServer("test-server")
-	serv.AddGauge(server.Pulse)
-	serv.AddGauge(server.CircuitBreaker)
-	serv.AddParam(server.DISCOVERY, "localhost:9000")
-	serv.AddParam(server.CIRCUIT_BREAKER, "true")
+	serv := CreateServer("test-server", Pulse, CircuitBreaker)
+	serv.AddParam(DISCOVERY, "localhost:9000")
+	serv.AddParam(CIRCUIT_BREAKER, "true")
 
 	serv.AddHandlerWithCircuitBreaker("/long-op", longFunc(), 1)
 	serv.Start()

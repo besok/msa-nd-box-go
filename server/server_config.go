@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"log"
 	"msa-nd-box-go/message"
+	"net"
 	"net/http"
-	"reflect"
 	"strconv"
 )
 
-
 const (
-	DISCOVERY Param = "discovery"
-	CIRCUIT_BREAKER Param ="circuit_breaker"
+	DISCOVERY       Param = "discovery"
+	CIRCUIT_BREAKER Param = "circuit_breaker"
+	PORT            Param = "port"
 )
 
 type Param string
@@ -67,16 +67,17 @@ type InitHandler struct {
 var defHandler = InitHandler{operators: make([]InitOperator, 0)}
 
 func defaultInitHandler() *InitHandler {
+	defHandler.operators = append(defHandler.operators, port)
 	defHandler.operators = append(defHandler.operators, discovery)
 	return &defHandler
 }
 
 func (h *InitHandler) handle(server *Server) {
 	for _, op := range h.operators {
-		log.Printf("init operator %s is starting ", reflect.TypeOf(op))
 		err := op(server)
 		if err != nil {
-			log.Fatalf("init operator failed, error:%s ", err)
+			log.Printf("init operator failed, error:%s ", err)
+			panic(err)
 		}
 	}
 }
@@ -100,4 +101,25 @@ func discovery(server *Server) error {
 	}
 
 	return err
+}
+
+func port(s *Server) error {
+	p, ok := s.config.Int(PORT)
+	if !ok {
+		log.Printf("find random port to start")
+		return nil
+	}
+
+	e := (*s.listener).Close()
+	if e != nil {
+		log.Printf("error while close random port:%s", e)
+	}
+	port := fmt.Sprintf(":%d", p)
+	li, err := net.Listen("tcp", port)
+	if err != nil {
+		return err
+	}
+	s.listener = &li
+	s.service.Address = port
+	return nil
 }

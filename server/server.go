@@ -10,7 +10,12 @@ import (
 	"time"
 )
 
-type handleFunc func(http.ResponseWriter, *http.Request)
+type Error string
+
+func (e Error) Error() string {
+	return string(e)
+}
+
 type CbValue struct {
 	expected int
 	actual   int
@@ -19,7 +24,7 @@ type CBProcessor struct {
 	circuitBreakers map[string]CbValue
 }
 
-var defCBProcessor CBProcessor = CBProcessor{make(map[string]CbValue)}
+var defCBProcessor = CBProcessor{make(map[string]CbValue)}
 
 type Server struct {
 	gaugeStore GaugeStore
@@ -74,10 +79,11 @@ func (s *Server) AddHandler(pattern string, handler func(http.ResponseWriter, *h
 func (s *Server) AddHandlerWithCircuitBreaker(pattern string, handler func(http.ResponseWriter, *http.Request), cbInSec int) {
 	log.Printf("server:%s, add new hanler : %s with circuit breaker: %d ", s.service, pattern, cbInSec)
 	if cbInSec < 0 {
-		cbInSec = 0
+		log.Println("should be more 0")
+		panic(Error(""))
 	}
 	defCBProcessor.circuitBreakers[pattern] = CbValue{actual: 0, expected: cbInSec}
-	s.mux.HandleFunc(pattern,wrapWithCB(pattern,handler))
+	s.mux.HandleFunc(pattern, wrapWithCB(pattern, handler))
 }
 
 func wrapWithCB(pattern string, h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {

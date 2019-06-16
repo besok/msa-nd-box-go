@@ -71,7 +71,12 @@ func (a *AdminServer) snapshot() {
 func (a *AdminServer) fetchMetrics() {
 	NewMetricHandler(PulseMetricHandler)
 	NewMetricHandler(CBMetricHandler)
-
+	failedMetricMes := func (service string, addr string, err error) message.MetricsMessage {
+		return message.CreateMetricsMessageWithMetric(
+		message.Service{Service: service, Address: addr},
+		message.Failed,
+		"pulse", message.Metric{Value: "", Error: err})
+	}
 	for {
 		str := a.storage(REGISTRY_STORAGE)
 		keys := str.Keys()
@@ -87,13 +92,13 @@ func (a *AdminServer) fetchMetrics() {
 				var metricMessage message.MetricsMessage
 				if err != nil {
 					log.Printf("fetching metrics from the server:{%s,%s} has been finished with error: %s, \n", k, addr, err)
-					metricMessage = createFailedMetricMessage(k, addr, err)
+					metricMessage = failedMetricMes(k, addr, err)
 				} else {
 					decoder := json.NewDecoder(r.Body)
 					err := decoder.Decode(&metricMessage)
 					if err != nil {
 						log.Printf("fetching metrics from the server:{%s,%s} has been finished with error: %s, \n", k, addr, err)
-						metricMessage = createFailedMetricMessage(k, addr, err)
+						metricMessage = failedMetricMes(k, addr, err)
 					}
 				}
 				HandleMetrics(a, metricMessage)
@@ -104,12 +109,7 @@ func (a *AdminServer) fetchMetrics() {
 	}
 }
 
-func createFailedMetricMessage(service string, addr string, err error) message.MetricsMessage {
-	return message.CreateMetricsMessageWithMetric(
-		message.Service{Service: service, Address: addr},
-		message.Failed,
-		"pulse", message.Metric{Value: "", Error: err})
-}
+
 
 func (a *AdminServer) AddStorage(s *storage.Storage) {
 	a.storages[s.Name] = s

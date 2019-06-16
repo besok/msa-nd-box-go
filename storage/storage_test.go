@@ -260,8 +260,8 @@ func TestStorage_Handler(t *testing.T) {
 	}
 	testKey := "test_key"
 	testVal := "test_Val"
-	s.AddListener(func(event StorageEvent, storage StorageName, key string, value Line) {
-		if event == Put && StorageName(str) == storage {
+	s.AddListener(func(event Event, storage Name, key string, value Line) {
+		if event == Put && Name(str) == storage {
 			log.Printf(" listener : key: %s, value: %s", key, value)
 
 			line := StringLine{testVal}

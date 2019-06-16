@@ -63,16 +63,16 @@ func CreateStorage(p string, name string, createType func() Lines, listeners []L
 	}
 
 	err = storage.readAllFiles(createType)
-	storage.handler.Handle(Init, StorageName(name), "", nil)
+	storage.handler.Handle(Init, Name(name), "", nil)
 	return str, err
 }
 
 func (s *Storage) Get(key string) (Lines, bool) {
 	if lines, ok := s.memory[key]; ok {
-		s.handler.Handle(Get, StorageName(s.Name), key, nil)
+		s.handler.Handle(Get, Name(s.Name), key, nil)
 		return lines, ok
 	}
-	s.handler.Handle(Get, StorageName(s.Name), key, nil)
+	s.handler.Handle(Get, Name(s.Name), key, nil)
 	return nil, false
 }
 func (s *Storage) GetValue(key string, line *Line) (Line, bool) {
@@ -84,12 +84,12 @@ func (s *Storage) GetValue(key string, line *Line) (Line, bool) {
 		for i := 0; i < sz; i++ {
 			ln, ok := lines.Get(i)
 			if ok && ln.Equal(*line) {
-				s.handler.Handle(GetValue, StorageName(s.Name), key, *line)
+				s.handler.Handle(GetValue, Name(s.Name), key, *line)
 				return ln, ok
 			}
 		}
 	}
-	s.handler.Handle(GetValue, StorageName(s.Name), key, *line)
+	s.handler.Handle(GetValue, Name(s.Name), key, *line)
 	return nil, false
 }
 
@@ -106,7 +106,7 @@ func (s *Storage) Put(key string, line Line) error {
 	s.mutex.Lock()
 	defer func() {
 		log.Printf("put value to a storage: %s, key: %s, value: %s \n", s.Name, key, line)
-		s.handler.Handle(Put, StorageName(s.Name), key, line)
+		s.handler.Handle(Put, Name(s.Name), key, line)
 		s.mutex.Unlock()
 	}()
 	pathKey := s.storagePathKey(key)
@@ -132,7 +132,7 @@ func (s *Storage) RemoveKey(key string) error {
 	pathKey := s.storagePathKey(key)
 	delete(s.memory, key)
 	log.Printf("remove key at a storage: %s, key: %s\n", s.Name, key)
-	s.handler.Handle(RemoveKey, StorageName(s.Name), key, nil)
+	s.handler.Handle(RemoveKey, Name(s.Name), key, nil)
 	return os.Remove(pathKey)
 }
 
@@ -144,7 +144,7 @@ func (s *Storage) RemoveValue(key string, line Line) error {
 			s.mutex.Unlock()
 		}
 
-		s.handler.Handle(RemoveVal, StorageName(s.Name), key, line)
+		s.handler.Handle(RemoveVal, Name(s.Name), key, line)
 		log.Printf("remove value at a storage: %s, key: %s, value: %s \n", s.Name, key, line)
 	}()
 
@@ -174,7 +174,7 @@ func (s *Storage) Clean() error {
 	err := os.RemoveAll(strPath)
 	err = createDir(strPath)
 	log.Printf("clean storage: %s \n", s.Name)
-	s.handler.Handle(Clean, StorageName(s.Name), "", nil)
+	s.handler.Handle(Clean, Name(s.Name), "", nil)
 	return err
 }
 

@@ -59,6 +59,7 @@ func (s *Server) Start() {
 	_ = srv.Serve(li.(*net.TCPListener))
 }
 
+//AddGauge add gauge to server
 func (s *Server) AddGauge(gauge Gauge) *Server {
 	s.gaugeStore.AddGauge(gauge)
 	return s

@@ -40,8 +40,8 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 
 func createDefaultStorages(path string, listeners ...storage.Listener) Storages {
 	strs := make(Storages)
-	strs[REGISTRY_STORAGE] = createStorage(path, REGISTRY_STORAGE, storage.CreateStringLines,listeners...)
-	strs[CIRCUIT_BREAKER_STORAGE] = createStorage(path, CIRCUIT_BREAKER_STORAGE,storage.CreateCBLines, listeners...)
+	strs[REGISTRY_STORAGE] = createStorage(path, REGISTRY_STORAGE, storage.CreateStringLines, listeners...)
+	strs[CIRCUIT_BREAKER_STORAGE] = createStorage(path, CIRCUIT_BREAKER_STORAGE, storage.CreateCBLines, listeners...)
 	return strs
 
 }
@@ -133,38 +133,65 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 	writer.Header().Set("Content-Type", "application/json")
 	serviceName := strings.TrimPrefix(request.URL.Path, "/service/")
 
+	var lines storage.Lines
+
+	var js []byte
+	var e error
+
 	if strings.Contains(serviceName, "/all") {
 		serviceName = strings.TrimSuffix(serviceName, "/all")
-		lines, ok := a.storage(REGISTRY_STORAGE).Get(serviceName)
-		if !ok {
-			writer.WriteHeader(404)
-			return
+		hasCB := a.storage(CIRCUIT_BREAKER_STORAGE).Contains(serviceName)
+		if hasCB {
+			lines = *a.filterLines(CIRCUIT_BREAKER_STORAGE, serviceName, activeCBServices)
+		} else {
+			lines = *a.filterLines(REGISTRY_STORAGE, serviceName, noFilter)
 		}
-		js, e := json.Marshal(message.CreateGetServiceAllMessage(serviceName, lines))
-		if e != nil {
-			log.Fatalf("can't convert to json, %s", e)
-		}
-		_, e = writer.Write(js)
-		if e != nil {
-			log.Fatalf("can't send, %s", e)
-		}
-
+		js, e = json.Marshal(message.CreateGetServiceAllMessage(serviceName, lines))
 	} else {
-		lines, ok := a.storage(REGISTRY_STORAGE).Get(serviceName)
-		if !ok {
-			writer.WriteHeader(404)
-			return
+		hasCB := a.storage(CIRCUIT_BREAKER_STORAGE).Contains(serviceName)
+		if hasCB {
+			lines = *a.filterLines(CIRCUIT_BREAKER_STORAGE, serviceName, activeCBServices)
+		} else {
+			lines = *a.filterLines(REGISTRY_STORAGE, serviceName, noFilter)
 		}
-		js, e := json.Marshal(message.CreateGetServiceMessage(serviceName, lines))
-		if e != nil {
-			log.Fatalf("can't convert to json, %s", e)
-		}
-		_, e = writer.Write(js)
-		if e != nil {
-			log.Fatalf("can't send, %s", e)
+		js, e = json.Marshal(message.CreateGetServiceMessage(serviceName, lines))
+
+	}
+	if e != nil {
+		log.Fatalf("can't convert to json, %s", e)
+	}
+	_, e = writer.Write(js)
+	if e != nil {
+		log.Fatalf("can't send, %s", e)
+	}
+}
+
+func (a *AdminServer) filterLines(str string, key string, filter func(lines storage.Lines) *storage.Lines) *storage.Lines {
+	lines, ok := a.storage(str).Get(key)
+	if !ok {
+		return storage.CreateEmptyLines()
+	}
+	return filter(lines)
+}
+
+func noFilter(lines storage.Lines) *storage.Lines {
+	return &lines
+}
+
+func activeCBServices(lines storage.Lines) *storage.Lines {
+	cbLines := lines.(*storage.CBLines)
+
+	tempLines := make([]storage.StringLine, 0)
+
+	for _, v := range cbLines.Lines {
+		if v.Active {
+			tempLines = append(tempLines, storage.StringLine{Value: v.Address})
 		}
 	}
 
+	var fLines storage.Lines
+	fLines = &storage.StringLines{Lines: tempLines}
+	return &fLines
 }
 
 func (a *AdminServer) storage(name string) *storage.Storage {

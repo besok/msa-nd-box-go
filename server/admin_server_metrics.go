@@ -59,6 +59,16 @@ func CBHandler(a *AdminServer, message message.MetricsMessage) error {
 	if metric.Error != nil || metric.Value != "true" {
 		active = false
 	}
+	var ln storage.Line
+	ln = storage.CBLine{Address: service.Address, Active: false}
+
+	line, ok := str.GetValue(service.Service, &ln)
+	if ok {
+		cbLine := line.(storage.CBLine)
+		if cbLine.Active == active {
+			return nil
+		}
+	}
 
 	return str.Put(service.Service, storage.CBLine{Address: service.Address, Active: active})
 }

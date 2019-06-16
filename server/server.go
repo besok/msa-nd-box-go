@@ -11,15 +11,15 @@ import (
 )
 
 type handleFunc func(http.ResponseWriter, *http.Request)
-type cbValue struct {
+type CbValue struct {
 	expected int
 	actual   int
 }
 type CBProcessor struct {
-	circuitBreakers map[string]cbValue
+	circuitBreakers map[string]CbValue
 }
 
-var defCBProcessor CBProcessor = CBProcessor{make(map[string]cbValue)}
+var defCBProcessor CBProcessor = CBProcessor{make(map[string]CbValue)}
 
 type Server struct {
 	gaugeStore GaugeStore
@@ -76,7 +76,7 @@ func (s *Server) AddHandlerWithCircuitBreaker(pattern string, handler func(http.
 	if cbInSec < 0 {
 		cbInSec = 0
 	}
-	defCBProcessor.circuitBreakers[pattern] = cbValue{actual: 0, expected: cbInSec}
+	defCBProcessor.circuitBreakers[pattern] = CbValue{actual: 0, expected: cbInSec}
 	s.mux.HandleFunc(pattern,wrapWithCB(pattern,handler))
 }
 

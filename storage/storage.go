@@ -75,6 +75,23 @@ func (s *Storage) Get(key string) (Lines, bool) {
 	s.handler.Handle(Get, StorageName(s.Name), key, nil)
 	return nil, false
 }
+func (s *Storage) GetValue(key string, line *Line) (Line, bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	if lines, ok := s.memory[key]; ok {
+		sz := lines.Size()
+
+		for i := 0; i < sz; i++ {
+			ln, ok := lines.Get(i)
+			if ok && ln.Equal(*line) {
+				s.handler.Handle(GetValue, StorageName(s.Name), key, *line)
+				return ln, ok
+			}
+		}
+	}
+	s.handler.Handle(GetValue, StorageName(s.Name), key, *line)
+	return nil, false
+}
 
 func (s *Storage) Contains(key string) bool {
 	_, ok := s.memory[key]

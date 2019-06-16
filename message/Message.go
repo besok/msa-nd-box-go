@@ -62,8 +62,15 @@ func CreateGetServiceAllMessage(service string, lines storage.Lines) GetServiceA
 }
 func CreateGetServiceMessage(service string, lines storage.Lines) GetServiceMessage {
 	records := lines.ToString()
-
-	r := rand.Intn(lines.Size())
+	size := lines.Size()
+	if size == 0{
+		return GetServiceMessage{
+			Message{
+				Status: Failed, From: Service{":9000", "admin-service"},
+			}, Service{},
+		}
+	}
+	r := rand.Intn(size)
 
 	return GetServiceMessage{
 		Message{

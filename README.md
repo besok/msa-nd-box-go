@@ -5,3 +5,4 @@ Simple implementation msa patterns with go lang
 - storage listeners
 - service registry
 - pulse/metrics
+- circuit breaker

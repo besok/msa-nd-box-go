@@ -13,6 +13,7 @@ type StorageName string
 const (
 	Put       StorageEvent = "Put"
 	Get                    = "Get"
+	GetValue               = "GetValue"
 	RemoveKey              = "RemoveKey"
 	RemoveVal              = "RemoveVal"
 	Init                   = "Init"
@@ -47,15 +48,52 @@ type Lines interface {
 	ToString() Records
 	Equal(left Line, right Line) bool
 	Add(line Line) bool
+	Get(idx int) (Line, bool)
 	Remove(line Line) bool
 	Size() int
-	// GET???
 }
 
+type EmptyLine string
 
+func (*EmptyLine) Equal(other Line) bool {
+	return true
+}
+
+type EmptyLines struct {
+	lines []EmptyLine
+}
+
+func (*EmptyLines) Get(idx int) (Line, bool) {
+	return nil, false
+}
+
+func (*EmptyLines) fromString(records Records) {
+}
+
+func (*EmptyLines) ToString() Records {
+	return []string{}
+}
+
+func (*EmptyLines) Equal(left Line, right Line) bool {
+	return true
+}
+
+func (*EmptyLines) Add(line Line) bool {
+	return true
+}
+
+func (*EmptyLines) Remove(line Line) bool {
+	return true
+}
+
+func (*EmptyLines) Size() int {
+	return 0
+}
 
 func CreateEmptyLines() *Lines {
-	return new(Lines)
+	var lines Lines
+	lines = new(EmptyLines)
+	return &lines
 }
 
 func CreateEmptyRecords() Records {
@@ -74,21 +112,29 @@ type StringLine struct {
 	Value string
 }
 type StringLines struct {
-	lines []StringLine
+	Lines []StringLine
+}
+
+func (l *StringLines) Get(idx int) (Line, bool) {
+	sz := len(l.Lines)
+	if idx > sz-1 || idx < 0 {
+		return nil,false
+	}
+	return l.Lines[idx],true
 }
 
 func (l *StringLines) Size() int {
-	return len(l.lines)
+	return len(l.Lines)
 }
 
 func (l *StringLines) Add(line Line) bool {
-	l.lines = append(l.lines, line.(StringLine))
+	l.Lines = append(l.Lines, line.(StringLine))
 	return true
 }
 
 func (l *StringLines) Remove(line Line) bool {
 	idx := -1
-	lines := l.lines
+	lines := l.Lines
 	for i, el := range lines {
 		if l.Equal(el, line) {
 			idx = i
@@ -100,7 +146,7 @@ func (l *StringLines) Remove(line Line) bool {
 	}
 	ln := len(lines)
 	lines[ln-1], lines[idx] = lines[idx], lines[ln-1]
-	l.lines = lines[:ln-1]
+	l.Lines = lines[:ln-1]
 	return true
 }
 
@@ -109,14 +155,14 @@ func (*StringLines) Equal(left Line, right Line) bool {
 }
 
 func (l *StringLines) fromString(records Records) {
-	l.lines = make([]StringLine, 0)
+	l.Lines = make([]StringLine, 0)
 	for _, v := range records {
-		l.lines = append(l.lines, StringLine{v})
+		l.Lines = append(l.Lines, StringLine{v})
 	}
 }
 func (l *StringLines) ToString() Records {
 	records := make(Records, 0)
-	for _, v := range l.lines {
+	for _, v := range l.Lines {
 		records = append(records, v.Value)
 	}
 	return records
@@ -136,7 +182,7 @@ func PrintLines(lines Lines) {
 			log.Printf(" record: %s \n", r)
 		}
 	} else {
-		log.Println(" lines are a empty ")
+		log.Println(" Lines are a empty ")
 	}
 }
 
@@ -146,24 +192,32 @@ type CBLine struct {
 }
 
 type CBLines struct {
-	lines []CBLine
+	Lines []CBLine
+}
+
+func (l *CBLines) Get(idx int) (Line, bool) {
+	sz := len(l.Lines)
+	if idx > sz-1 || idx < 0 {
+		return nil,false
+	}
+	return l.Lines[idx],true
 }
 
 func (l *CBLines) fromString(records Records) {
-	l.lines = make([]CBLine, len(records))
+	l.Lines = make([]CBLine, len(records))
 	for i, v := range records {
 		res := strings.Split(v, "=")
 		flag := false
 		if res[1] == "true" {
 			flag = true
 		}
-		l.lines[i] = CBLine{Address: res[0], Active: flag}
+		l.Lines[i] = CBLine{Address: res[0], Active: flag}
 	}
 }
 
 func (l *CBLines) ToString() Records {
 	records := make([]string, l.Size())
-	for i, v := range l.lines {
+	for i, v := range l.Lines {
 		records[i] = fmt.Sprintf("%s=%s", v.Address, strconv.FormatBool(v.Active))
 	}
 	return records
@@ -174,14 +228,14 @@ func (CBLines) Equal(left Line, right Line) bool {
 }
 
 func (l *CBLines) Add(line Line) bool {
-	l.lines = append(l.lines, line.(CBLine))
+	l.Lines = append(l.Lines, line.(CBLine))
 	return true
 }
 
 func (l *CBLines) Remove(line Line) bool {
 	idx := -1
-	values := l.lines
-	for i, el := range values{
+	values := l.Lines
+	for i, el := range values {
 		if l.Equal(el, line) {
 			idx = i
 			break
@@ -192,12 +246,12 @@ func (l *CBLines) Remove(line Line) bool {
 	}
 	ln := len(values)
 	values[ln-1], values[idx] = values[idx], values[ln-1]
-	l.lines = values[:ln-1]
+	l.Lines = values[:ln-1]
 	return true
 }
 
 func (l *CBLines) Size() int {
-	return len(l.lines)
+	return len(l.Lines)
 }
 
 func (v CBLine) Equal(other Line) bool {

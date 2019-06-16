@@ -26,7 +26,7 @@ func HandleMetrics(a *AdminServer, metricsMessage message.MetricsMessage) {
 	}
 }
 
-func ServiceDiscoveryPulse(a *AdminServer, message message.MetricsMessage) error {
+func PulseMetricHandler(a *AdminServer, message message.MetricsMessage) error {
 	metrics := message.Metrics
 	metric, ok := metrics["pulse"]
 
@@ -45,7 +45,7 @@ func ServiceDiscoveryPulse(a *AdminServer, message message.MetricsMessage) error
 	}
 	return nil
 }
-func CBHandler(a *AdminServer, message message.MetricsMessage) error {
+func CBMetricHandler(a *AdminServer, message message.MetricsMessage) error {
 	metrics := message.Metrics
 	metric, ok := metrics["cb"]
 	service := message.From

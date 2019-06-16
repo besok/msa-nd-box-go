@@ -69,8 +69,8 @@ func (a *AdminServer) snapshot() {
 }
 
 func (a *AdminServer) fetchMetrics() {
-	NewMetricHandler(ServiceDiscoveryPulse)
-	NewMetricHandler(CBHandler)
+	NewMetricHandler(PulseMetricHandler)
+	NewMetricHandler(CBMetricHandler)
 
 	for {
 		str := a.storage(REGISTRY_STORAGE)

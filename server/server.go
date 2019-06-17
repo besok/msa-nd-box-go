@@ -77,13 +77,13 @@ func (s *Server) AddHandler(pattern string, handler func(http.ResponseWriter, *h
 	log.Printf("server:%s, add new hanler: %s ", s.service, pattern)
 	s.mux.HandleFunc(pattern, handler)
 }
-func (s *Server) AddHandlerWithCircuitBreaker(pattern string, handler func(http.ResponseWriter, *http.Request), cbInSec int) {
-	log.Printf("server:%s, add new hanler : %s with circuit breaker: %d ", s.service, pattern, cbInSec)
-	if cbInSec < 0 {
+func (s *Server) AddHandlerWithCircuitBreaker(pattern string, handler func(http.ResponseWriter, *http.Request), expDuration int) {
+	log.Printf("server:%s, add new hanler : %s with circuit breaker: %d ", s.service, pattern, expDuration)
+	if expDuration < 0 {
 		log.Println("should be more 0")
 		panic(Error(""))
 	}
-	defCBProcessor.circuitBreakers[pattern] = CbValue{actual: 0, expected: cbInSec}
+	defCBProcessor.circuitBreakers[pattern] = CbValue{actual: 0, expected: expDuration}
 	s.mux.HandleFunc(pattern, wrapWithCB(pattern, handler))
 }
 

@@ -56,7 +56,7 @@ func (s *Server) Start() {
 	s.mux.HandleFunc("/metrics", s.processMetrics)
 	srv := http.Server{Addr: addr, Handler: s.mux}
 	li := *s.listener
-	_ = srv.Serve(li.(*net.TCPListener))
+	log.Println(srv.Serve(li.(*net.TCPListener)))
 }
 
 //AddGauge add gauge to server
@@ -84,10 +84,10 @@ func (s *Server) AddHandlerWithCircuitBreaker(pattern string, handler func(http.
 		panic(Error(""))
 	}
 	defCBProcessor.circuitBreakers[pattern] = CbValue{actual: 0, expected: expDuration}
-	s.mux.HandleFunc(pattern, wrapWithCB(pattern, handler))
+	s.mux.HandleFunc(pattern, wrapCbHandler(pattern, handler))
 }
 
-func wrapWithCB(pattern string, h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+func wrapCbHandler(pattern string, h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		nowTime := time.Now()
 		h(writer, request)

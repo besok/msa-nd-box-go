@@ -10,6 +10,7 @@ func main() {
 	serv := CreateServer("test-server", CircuitBreaker)
 	serv.AddGauge(Pulse)
 	serv.AddParam(DISCOVERY, "localhost:9000")
+	serv.AddParam(LOAD_BALANCER, "robin")
 	serv.AddParam(CIRCUIT_BREAKER, "true")
 	serv.AddParam(PORT,"10000")
 	serv.AddHandlerWithCircuitBreaker("/long-op", longFunc(), 1)

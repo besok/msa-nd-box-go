@@ -15,6 +15,7 @@ const (
 	DISCOVERY       Param = "discovery"
 	CIRCUIT_BREAKER Param = "circuit_breaker"
 	PORT            Param = "port"
+	LOAD_BALANCER   Param = "load_balancer"
 )
 
 type Param string
@@ -69,6 +70,7 @@ var defHandler = InitHandler{operators: make([]InitOperator, 0)}
 func defaultInitHandler() *InitHandler {
 	defHandler.operators = append(defHandler.operators, port)
 	defHandler.operators = append(defHandler.operators, discovery)
+	defHandler.operators = append(defHandler.operators, balancer)
 	return &defHandler
 }
 
@@ -121,5 +123,15 @@ func port(s *Server) error {
 	}
 	s.listener = &li
 	s.service.Address = port
+	return nil
+}
+func balancer(s *Server) error {
+	p, ok := s.config.String(LOAD_BALANCER)
+	if ok {
+		s.AddGauge(
+			func() (string, string, error) {
+				return "load_balancer", p, nil
+			})
+	}
 	return nil
 }

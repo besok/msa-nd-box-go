@@ -32,7 +32,7 @@ func TestStorage_Put(t *testing.T) {
 	}
 
 	for k, v := range s.memory {
-		fmt.Printf("service : %s\n", k)
+		fmt.Printf("Service : %s\n", k)
 		PrintLines(v)
 	}
 }
@@ -74,7 +74,7 @@ func TestStorage_Put_CB(t *testing.T) {
 	}
 
 	for k, v := range s.memory {
-		fmt.Printf("service : %s\n", k)
+		fmt.Printf("Service : %s\n", k)
 		PrintLines(v)
 	}
 }

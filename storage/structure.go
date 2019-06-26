@@ -53,6 +53,83 @@ type Lines interface {
 	Size() int
 }
 
+type LBStrategy string
+
+const (
+	Robin  LBStrategy = "robin"
+	Random LBStrategy = "random"
+)
+
+type LBLines struct {
+	lines []LBLine
+}
+
+func (l *LBLines) fromString(records Records) {
+	lines := make([]LBLine, len(records))
+	for i, v := range records {
+		split := strings.Split(v, ":")
+		lines[i] = LBLine{split[0], LBStrategy(split[1])}
+	}
+
+}
+
+func (l *LBLines) ToString() Records {
+	lines := make(Records, len(l.lines))
+	for i, v := range l.lines {
+		lines[i] = fmt.Sprintf("%s:%s",v.Service,v.Strategy)
+	}
+	return lines
+}
+
+func (*LBLines) Equal(left Line, right Line) bool {
+	return left.Equal(right)
+}
+
+func (l *LBLines) Add(line Line) bool {
+	l.lines = append(l.lines,line.(LBLine))
+	return true
+}
+
+func (l *LBLines) Get(idx int) (Line, bool) {
+	sz := len(l.lines)
+	if idx > sz-1 || idx < 0 {
+		return nil, false
+	}
+	return l.lines[idx], true
+}
+
+func (l *LBLines) Remove(line Line) bool {
+	idx := -1
+	values := l.lines
+	for i, el := range values {
+		if l.Equal(el, line) {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return false
+	}
+	ln := len(values)
+	values[ln-1], values[idx] = values[idx], values[ln-1]
+	l.lines = values[:ln-1]
+	return true
+}
+
+func (l *LBLines) Size() int {
+	return len(l.lines)
+}
+
+type LBLine struct {
+	Service  string
+	Strategy LBStrategy
+}
+
+func (l LBLine) Equal(other Line) bool {
+	otherL := other.(LBLine)
+	return l.Service == otherL.Service
+}
+
 type EmptyLine string
 
 func (*EmptyLine) Equal(other Line) bool {
@@ -106,6 +183,10 @@ func CreateStringLines() Lines {
 func CreateCBLines() Lines {
 	return new(CBLines)
 }
+func CreateLBLines() Lines {
+	return new(LBLines)
+}
+
 
 // simple base impl
 type StringLine struct {

@@ -20,6 +20,7 @@ type Storages map[string]*storage.Storage
 const (
 	REGISTRY_STORAGE        = "service_registry_storage"
 	CIRCUIT_BREAKER_STORAGE = "circuit_breaker_storage"
+	LOAD_BALANCER_STORAGE   = "load_balancer_storage"
 )
 
 type AdminServer struct {
@@ -42,6 +43,12 @@ func createDefaultStorages(path string, listeners ...storage.Listener) Storages 
 	strs := make(Storages)
 	strs[REGISTRY_STORAGE] = createStorage(path, REGISTRY_STORAGE, storage.CreateStringLines, listeners...)
 	strs[CIRCUIT_BREAKER_STORAGE] = createStorage(path, CIRCUIT_BREAKER_STORAGE, storage.CreateCBLines, listeners...)
+	strs[LOAD_BALANCER_STORAGE] = createStorage(path, LOAD_BALANCER_STORAGE, storage.CreateLBLines, listeners...)
+
+	err := strs[LOAD_BALANCER_STORAGE].Put("services", storage.LBLine{Service: "empty", Strategy: "empty"})
+	if err != nil {
+		log.Fatalf("error for loadbalancer storage :%s", err)
+	}
 	return strs
 
 }
@@ -68,14 +75,19 @@ func (a *AdminServer) snapshot() {
 	}
 }
 
-func (a *AdminServer) fetchMetrics() {
+func initDefaultMetrics() {
 	NewMetricHandler(PulseMetricHandler)
 	NewMetricHandler(CBMetricHandler)
-	failedMetricMes := func (service string, addr string, err error) message.MetricsMessage {
+	NewMetricHandler(LoadBalancerMetricHandler)
+}
+
+func (a *AdminServer) fetchMetrics() {
+	initDefaultMetrics()
+	failedMetricMes := func(service string, addr string, err error) message.MetricsMessage {
 		return message.CreateMetricsMessageWithMetric(
-		message.Service{Service: service, Address: addr},
-		message.Failed,
-		"pulse", message.Metric{Value: "", Error: err})
+			message.Service{Service: service, Address: addr},
+			message.Failed,
+			"pulse", message.Metric{Value: "", Error: err})
 	}
 	for {
 		str := a.storage(REGISTRY_STORAGE)
@@ -108,8 +120,6 @@ func (a *AdminServer) fetchMetrics() {
 		time.Sleep(time.Second * 5)
 	}
 }
-
-
 
 func (a *AdminServer) AddStorage(s *storage.Storage) {
 	a.storages[s.Name] = s

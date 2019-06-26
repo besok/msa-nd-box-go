@@ -26,6 +26,32 @@ func HandleMetrics(a *AdminServer, metricsMessage message.MetricsMessage) {
 	}
 }
 
+func LoadBalancerMetricHandler(a *AdminServer, message message.MetricsMessage) error {
+	metrics := message.Metrics
+	service := message.From
+	m, ok := metrics["load_balancer"]
+
+	str := a.storage(LOAD_BALANCER_STORAGE)
+	var ln storage.Line
+	ln = storage.LBLine{Service: service.Service, Strategy: storage.LBStrategy(m.Value)}
+	_, okGet := str.GetValue("services", &ln);
+
+	if ok {
+		if !okGet {
+			if err := str.Put("services", ln); err != nil {
+				log.Fatalf("error imposible to put to lb storage:%s", err)
+			}
+		}
+	}else{
+		if okGet{
+			if err:= str.RemoveValue("services",ln); err != nil{
+				log.Fatalf("error imposible to remove from storage:%s", err)
+			}
+		}
+	}
+	return nil
+}
+
 func PulseMetricHandler(a *AdminServer, message message.MetricsMessage) error {
 	metrics := message.Metrics
 	metric, ok := metrics["pulse"]

@@ -68,7 +68,14 @@ func (l *LBLines) fromString(records Records) {
 	lines := make([]LBLine, len(records))
 	for i, v := range records {
 		split := strings.Split(v, ":")
-		lines[i] = LBLine{split[0], LBStrategy(split[1])}
+
+		serviceName := split[0]
+		strategy := LBStrategy(split[1])
+		el, e := strconv.Atoi(split[2])
+		if e != nil {
+			el = 0
+		}
+		lines[i] = LBLine{serviceName,strategy,el}
 	}
 
 }
@@ -76,7 +83,7 @@ func (l *LBLines) fromString(records Records) {
 func (l *LBLines) ToString() Records {
 	lines := make(Records, len(l.lines))
 	for i, v := range l.lines {
-		lines[i] = fmt.Sprintf("%s:%s",v.Service,v.Strategy)
+		lines[i] = fmt.Sprintf("%s:%s:%d", v.Service, v.Strategy,v.Idx)
 	}
 	return lines
 }
@@ -86,7 +93,7 @@ func (*LBLines) Equal(left Line, right Line) bool {
 }
 
 func (l *LBLines) Add(line Line) bool {
-	l.lines = append(l.lines,line.(LBLine))
+	l.lines = append(l.lines, line.(LBLine))
 	return true
 }
 
@@ -123,6 +130,7 @@ func (l *LBLines) Size() int {
 type LBLine struct {
 	Service  string
 	Strategy LBStrategy
+	Idx      int
 }
 
 func (l LBLine) Equal(other Line) bool {
@@ -186,7 +194,6 @@ func CreateCBLines() Lines {
 func CreateLBLines() Lines {
 	return new(LBLines)
 }
-
 
 // simple base impl
 type StringLine struct {

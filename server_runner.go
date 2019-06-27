@@ -7,13 +7,18 @@ import (
 )
 
 func main() {
-	serv := CreateServer("test-server", CircuitBreaker)
+	serv := CreateServer("test-server")
+
 	serv.AddGauge(Pulse)
+	serv.AddGauge(CircuitBreaker)
+
 	serv.AddParam(DISCOVERY, "localhost:9000")
 	serv.AddParam(LOAD_BALANCER, "robin")
 	serv.AddParam(CIRCUIT_BREAKER, "true")
-	serv.AddParam(PORT,"10000")
+	//serv.AddParam(PORT,"10000")
+
 	serv.AddHandlerWithCircuitBreaker("/long-op", longFunc(), 1)
+
 	serv.Start()
 }
 

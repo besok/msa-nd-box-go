@@ -33,8 +33,8 @@ func LoadBalancerMetricHandler(a *AdminServer, message message.MetricsMessage) e
 
 	str := a.storage(LOAD_BALANCER_STORAGE)
 	var ln storage.Line
-	ln = storage.LBLine{Service: service.Service, Strategy: storage.LBStrategy(m.Value)}
-	_, okGet := str.GetValue("services", &ln);
+	ln = storage.LBLine{Service: service.Service, Strategy: storage.LBStrategy(m.Value), Idx:0}
+	_, okGet := str.GetValue("services", &ln)
 
 	if ok {
 		if !okGet {

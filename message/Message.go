@@ -1,7 +1,6 @@
 package message
 
 import (
-	"math/rand"
 	"msa-nd-box-go/storage"
 )
 
@@ -60,22 +59,11 @@ func CreateGetServiceAllMessage(service string, lines storage.Lines) GetServiceA
 		}, services,
 	}
 }
-func CreateGetServiceMessage(service string, lines storage.Lines) GetServiceMessage {
-	records := lines.ToString()
-	size := lines.Size()
-	if size == 0{
-		return GetServiceMessage{
-			Message{
-				Status: Failed, From: Service{":9000", "admin-service"},
-			}, Service{},
-		}
-	}
-	r := rand.Intn(size)
-
+func CreateGetServiceMessage(service string, addr string) GetServiceMessage {
 	return GetServiceMessage{
 		Message{
 			Status: Ready, From: Service{":9000", "admin-service"},
-		}, Service{Service: service, Address: records[r]},
+		}, Service{Service: service, Address: addr},
 	}
 }
 

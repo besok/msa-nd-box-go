@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"msa-nd-box-go/message"
 	"msa-nd-box-go/storage"
 	"net/http"
@@ -45,7 +46,7 @@ func createDefaultStorages(path string, listeners ...storage.Listener) Storages 
 	strs[CIRCUIT_BREAKER_STORAGE] = createStorage(path, CIRCUIT_BREAKER_STORAGE, storage.CreateCBLines, listeners...)
 	strs[LOAD_BALANCER_STORAGE] = createStorage(path, LOAD_BALANCER_STORAGE, storage.CreateLBLines, listeners...)
 
-	err := strs[LOAD_BALANCER_STORAGE].Put("services", storage.LBLine{Service: "empty", Strategy: "empty"})
+	err := strs[LOAD_BALANCER_STORAGE].Put("services", storage.LBLine{Service: "-", Strategy: "-"})
 	if err != nil {
 		log.Fatalf("error for loadbalancer storage :%s", err)
 	}
@@ -158,13 +159,33 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 		}
 		js, e = json.Marshal(message.CreateGetServiceAllMessage(serviceName, lines))
 	} else {
+		serviceName = strings.TrimSuffix(serviceName, "/")
 		hasCB := a.storage(CIRCUIT_BREAKER_STORAGE).Contains(serviceName)
 		if hasCB {
 			lines = *a.filterLines(CIRCUIT_BREAKER_STORAGE, serviceName, activeCBServices)
 		} else {
 			lines = *a.filterLines(REGISTRY_STORAGE, serviceName, noFilter)
 		}
-		js, e = json.Marshal(message.CreateGetServiceMessage(serviceName, lines))
+
+		var addr = ""
+		records := lines.ToString()
+		rLn := len(records)
+
+		lbStr := a.storage(LOAD_BALANCER_STORAGE)
+		var ln storage.Line = storage.LBLine{Service: serviceName}
+
+		v, ok := lbStr.GetValue("services", &ln)
+		if ok {
+			lbLine := v.(storage.LBLine)
+			idx := lbLine.Idx
+			addr, idx = lbStrategyPicker(lbLine.Strategy, idx, records)
+			lbLine.Idx = idx
+			_ = lbStr.Put("services", lbLine)
+		} else if rLn > 0 {
+			addr = records[rand.Intn(rLn)]
+		}
+
+		js, e = json.Marshal(message.CreateGetServiceMessage(serviceName, addr))
 
 	}
 	if e != nil {
@@ -206,4 +227,33 @@ func activeCBServices(lines storage.Lines) *storage.Lines {
 
 func (a *AdminServer) storage(name string) *storage.Storage {
 	return a.storages[name]
+}
+
+func lbStrategyPicker(str storage.LBStrategy, idx int, records []string) (string, int) {
+	rLn := len(records)
+	addr := ""
+	nextIdx := 0
+
+	if rLn == 0 {
+		return addr, nextIdx
+	}
+
+	switch str {
+	case storage.Robin:
+		if rLn > 0 {
+			if idx < rLn {
+				addr = records[idx]
+			} else {
+				addr = records[0]
+			}
+		}
+		if idx == rLn-1 {
+			nextIdx = 0
+		} else {
+			nextIdx = idx + 1
+		}
+	case storage.Random:
+		addr = records[rand.Intn(rLn)]
+	}
+	return addr, nextIdx
 }

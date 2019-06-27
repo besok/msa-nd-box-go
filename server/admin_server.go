@@ -45,11 +45,6 @@ func createDefaultStorages(path string, listeners ...storage.Listener) Storages 
 	strs[REGISTRY_STORAGE] = createStorage(path, REGISTRY_STORAGE, storage.CreateStringLines, listeners...)
 	strs[CIRCUIT_BREAKER_STORAGE] = createStorage(path, CIRCUIT_BREAKER_STORAGE, storage.CreateCBLines, listeners...)
 	strs[LOAD_BALANCER_STORAGE] = createStorage(path, LOAD_BALANCER_STORAGE, storage.CreateLBLines, listeners...)
-
-	err := strs[LOAD_BALANCER_STORAGE].Put("services", storage.LBLine{Service: "-", Strategy: "-"})
-	if err != nil {
-		log.Fatalf("error for loadbalancer storage :%s", err)
-	}
 	return strs
 
 }

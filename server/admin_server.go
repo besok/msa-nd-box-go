@@ -135,6 +135,7 @@ func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request
 		log.Fatalf(" error:%s, saving at storage", err)
 	}
 }
+// todo	refactoring to chain or pipe
 func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 	serviceName := strings.TrimPrefix(request.URL.Path, "/service/")

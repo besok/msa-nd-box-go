@@ -15,7 +15,9 @@ const (
 
 type ServerMessage struct {
 	Service Service
+	Params map[string]string
 }
+
 
 type Service struct {
 	Address string

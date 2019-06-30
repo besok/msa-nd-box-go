@@ -24,6 +24,17 @@ const (
 	LOAD_BALANCER_STORAGE   = "load_balancer_storage"
 )
 
+type ParamHandler func(*AdminServer, message.Service, string, string) error
+type ParamHandlers struct {
+	handlers []ParamHandler
+}
+
+var paramHandlers = new(ParamHandlers)
+
+func AddParamHandler(p ParamHandler) {
+	paramHandlers.handlers = append(paramHandlers.handlers, p)
+}
+
 type AdminServer struct {
 	storages  Storages
 	serverMux *http.ServeMux
@@ -37,6 +48,7 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 	server := AdminServer{strs, http.NewServeMux(), defaultAdminConfig}
 	server.serverMux.HandleFunc("/register", server.registerServiceHandler)
 	server.serverMux.HandleFunc("/service/", server.getServiceList)
+	AddParamHandler(processLoadBalancer)
 	return &server
 }
 
@@ -74,7 +86,6 @@ func (a *AdminServer) snapshot() {
 func initDefaultMetrics() {
 	NewMetricHandler(PulseMetricHandler)
 	NewMetricHandler(CBMetricHandler)
-	NewMetricHandler(LoadBalancerMetricHandler)
 }
 
 func (a *AdminServer) fetchMetrics() {
@@ -129,12 +140,23 @@ func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request
 		log.Fatalf(" error %s while parsing json %s \n", err, request.Body)
 		return
 	}
-	log.Printf("got message from server: %s and address %s \n", sm.Service.Service, sm.Service.Address)
-	err = a.storage(REGISTRY_STORAGE).Put(sm.Service.Service, storage.StringLine{Value: sm.Service.Address})
+	service := sm.Service
+	log.Printf("got message from server: %s and address %s \n", service.Service, service.Address)
+	err = a.storage(REGISTRY_STORAGE).Put(service.Service, storage.StringLine{Value: service.Address})
 	if err != nil {
 		log.Fatalf(" error:%s, saving at storage", err)
 	}
+
+	for _, h := range paramHandlers.handlers {
+		ps := sm.Params
+		for k, v := range ps {
+			if err := h(a, service, k, v); err != nil {
+				log.Printf("error processing param for param: %s, value :%s", k, v)
+			}
+		}
+	}
 }
+
 // todo	refactoring to chain or pipe
 func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
@@ -252,4 +274,22 @@ func lbStrategyPicker(str storage.LBStrategy, idx int, records []string) (string
 		addr = records[rand.Intn(rLn)]
 	}
 	return addr, nextIdx
+}
+
+func processLoadBalancer(a *AdminServer, service message.Service, p string, v string) error {
+	if p == string(LOAD_BALANCER) {
+		log.Printf("include load balancer:%s for %s",v,service)
+		str := a.storage(LOAD_BALANCER_STORAGE)
+		var ln storage.Line
+		ln = storage.LBLine{Service: service.Service, Strategy: storage.LBStrategy(v), Idx: 0}
+		_, ok := str.GetValue("services", &ln)
+		if !ok {
+			if err := str.Put("services", ln); err != nil {
+				log.Fatalf("error imposible to put to lb storage:%s", err)
+				return err
+			}
+		}
+	}
+
+	return nil
 }

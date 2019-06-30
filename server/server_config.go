@@ -70,7 +70,6 @@ var defHandler = InitHandler{operators: make([]InitOperator, 0)}
 func defaultInitHandler() *InitHandler {
 	defHandler.operators = append(defHandler.operators, port)
 	defHandler.operators = append(defHandler.operators, discovery)
-	defHandler.operators = append(defHandler.operators, balancer)
 	return &defHandler
 }
 
@@ -90,7 +89,13 @@ func discovery(server *Server) error {
 		log.Printf("discovery does not need")
 		return nil
 	}
-	sm := message.ServerMessage{Service: server.service}
+	params := make(map[string]string)
+
+	for k,v:= range server.config.Params{
+		params[string(k)] = v
+	}
+
+	sm := message.ServerMessage{Service: server.service,Params:params}
 	buffer := new(bytes.Buffer)
 	_ = json.NewEncoder(buffer).Encode(sm)
 	b, err := http.Post(fmt.Sprintf("http://%s/register", s), "application/json; charset=utf-8", buffer)
@@ -125,13 +130,4 @@ func port(s *Server) error {
 	s.service.Address = port
 	return nil
 }
-func balancer(s *Server) error {
-	p, ok := s.config.String(LOAD_BALANCER)
-	if ok {
-		s.AddGauge(
-			func() (string, string, error) {
-				return "load_balancer", p, nil
-			})
-	}
-	return nil
-}
+

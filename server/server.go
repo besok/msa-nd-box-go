@@ -54,6 +54,8 @@ func (s *Server) Start() {
 	log.Printf("service %s is about to start \n", s.service)
 
 	s.mux.HandleFunc("/metrics", s.processMetrics)
+	s.mux.HandleFunc("/init", s.init)
+	s.mux.HandleFunc("/close", s.close)
 	srv := http.Server{Addr: addr, Handler: s.mux}
 	li := *s.listener
 	log.Println(srv.Serve(li.(*net.TCPListener)))
@@ -127,4 +129,62 @@ func (s *Server) processMetrics(writer http.ResponseWriter, request *http.Reques
 	writer.WriteHeader(200)
 	_, _ = writer.Write(js)
 	return
+}
+
+type Operation func(s *Server) error
+type OperationHandler struct {
+	initOperations  []Operation
+	closeOperations []Operation
+}
+
+var operationHandler = new(OperationHandler)
+
+func AddInitOperation(op Operation) {
+	operationHandler.initOperations = append(operationHandler.initOperations, op)
+}
+func AddCloseOperation(op Operation) {
+	operationHandler.closeOperations = append(operationHandler.closeOperations, op)
+}
+
+func (s *Server) init(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	err := initOp(s)
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	w.WriteHeader(200)
+}
+func (s *Server) close(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	err := closeOp(s)
+	if err != nil {
+		w.WriteHeader(500)
+		log.Fatalf("can not marshal json %s", err)
+		return
+	}
+	w.WriteHeader(200)
+}
+func initOp(s *Server) error {
+	for _, op := range operationHandler.initOperations {
+		e := op(s)
+		if e != nil {
+			log.Printf("error while invoke init operator: %s", e)
+			return e
+		}
+	}
+	return nil
+}
+func closeOp(s *Server) error {
+	for _, op := range operationHandler.closeOperations {
+		e := op(s)
+		if e != nil {
+			log.Printf("error while invoke close operator: %s", e)
+			return e
+		}
+	}
+	return nil
+}
+func (s *Server) GetService() message.Service {
+	return s.service
 }

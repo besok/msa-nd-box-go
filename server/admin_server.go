@@ -48,8 +48,59 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 	server := AdminServer{strs, http.NewServeMux(), defaultAdminConfig}
 	server.serverMux.HandleFunc("/register", server.registerServiceHandler)
 	server.serverMux.HandleFunc("/service/", server.getServiceList)
+	server.serverMux.HandleFunc("/init/service/", server.initServices)
+	server.serverMux.HandleFunc("/close/service/", server.closeServices)
 	AddParamHandler(processLoadBalancer)
 	return &server
+}
+
+func (a *AdminServer) initServices(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Content-Type", "application/json")
+	serviceName := strings.TrimPrefix(request.URL.Path, "/init/service/")
+
+	servers := findWorkingServers(serviceName, a).ToString()
+	log.Printf("init request for service:%s, instances:%d", serviceName, len(servers))
+	for _, addr := range servers {
+		resp, err := http.Get(fmt.Sprintf("http://%s/init", addr))
+		if err != nil {
+			log.Printf("server with address[%s] is failed while initiation, error:%s", addr, err)
+		}
+
+		if resp.StatusCode == 500 {
+			log.Printf("server with address[%s] is failed while initiation", addr)
+		}
+	}
+
+}
+func (a *AdminServer) closeServices(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Content-Type", "application/json")
+	serviceName := strings.TrimPrefix(request.URL.Path, "/close/service/")
+
+	servers := findWorkingServers(serviceName, a).ToString()
+
+	for _, addr := range servers {
+		resp, err := http.Get(fmt.Sprintf("http://%s/close", addr))
+		if err != nil {
+			log.Printf("server with address:%s is failed while termination, error:%s", addr, err)
+		}
+
+		if resp.StatusCode == 500 {
+			log.Printf("server with address:%s is failed while termination, error:%s", addr, err)
+		}
+	}
+
+}
+
+func findWorkingServers(serviceName string, a *AdminServer) storage.Lines {
+	var lines storage.Lines
+	serviceName = strings.TrimSuffix(serviceName, "/")
+	hasCB := a.storage(CIRCUIT_BREAKER_STORAGE).Contains(serviceName)
+	if hasCB {
+		lines = *a.filterLines(CIRCUIT_BREAKER_STORAGE, serviceName, activeCBServices)
+	} else {
+		lines = *a.filterLines(REGISTRY_STORAGE, serviceName, noFilter)
+	}
+	return lines
 }
 
 func createDefaultStorages(path string, listeners ...storage.Listener) Storages {
@@ -70,11 +121,11 @@ func createStorage(path string, name string, f func() storage.Lines, listeners .
 	return str
 }
 
-func (a *AdminServer) Start() {
-	log.Println("start the admin server ")
+func (a *AdminServer) Start(port string) {
+	log.Println("start the admin server at the port:", port)
 	a.snapshot()
 	go a.fetchMetrics()
-	_ = http.ListenAndServe(":9000", a.serverMux)
+	_ = http.ListenAndServe(fmt.Sprintf(":%s", port), a.serverMux)
 }
 
 func (a *AdminServer) snapshot() {
@@ -278,7 +329,7 @@ func lbStrategyPicker(str storage.LBStrategy, idx int, records []string) (string
 
 func processLoadBalancer(a *AdminServer, service message.Service, p string, v string) error {
 	if p == string(LOAD_BALANCER) {
-		log.Printf("include load balancer:%s for %s",v,service)
+		log.Printf("include load balancer:%s for %s", v, service)
 		str := a.storage(LOAD_BALANCER_STORAGE)
 		var ln storage.Line
 		ln = storage.LBLine{Service: service.Service, Strategy: storage.LBStrategy(v), Idx: 0}

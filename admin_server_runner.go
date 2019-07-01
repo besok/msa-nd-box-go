@@ -6,5 +6,5 @@ import (
 
 func main() {
 	adminServer := server.CreateAdminServer("C:\\projects\\msa-nd-box-go\\file_storages")
-	adminServer.Start()
+	adminServer.Start("9000")
 }

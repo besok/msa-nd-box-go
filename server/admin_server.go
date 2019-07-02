@@ -25,16 +25,6 @@ const (
 	LOAD_BALANCER_STORAGE   = "load_balancer_storage"
 )
 
-type ParamHandler func(*AdminServer, message.Service, string, string) error
-type ParamHandlers struct {
-	handlers []ParamHandler
-}
-
-var paramHandlers = new(ParamHandlers)
-
-func AddParamHandler(p ParamHandler) {
-	paramHandlers.handlers = append(paramHandlers.handlers, p)
-}
 
 type AdminServer struct {
 	storages  Storages
@@ -42,7 +32,7 @@ type AdminServer struct {
 	config    Config
 }
 
-var defaultAdminConfig = Config{make(Params)}
+
 
 func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Listener) *AdminServer {
 	strs := createDefaultStorages(serviceRegistryStorage, listeners...)
@@ -111,7 +101,6 @@ func createDefaultStorages(path string, listeners ...storage.Listener) Storages 
 	strs[CIRCUIT_BREAKER_STORAGE] = createStorage(path, CIRCUIT_BREAKER_STORAGE, storage.CreateCBLines, listeners...)
 	strs[LOAD_BALANCER_STORAGE] = createStorage(path, LOAD_BALANCER_STORAGE, storage.CreateLBLines, listeners...)
 	return strs
-
 }
 
 func createStorage(path string, name string, f func() storage.Lines, listeners ...storage.Listener) *storage.Storage {
@@ -136,10 +125,7 @@ func (a *AdminServer) snapshot() {
 	}
 }
 
-func initDefaultMetrics() {
-	NewMetricHandler(PulseMetricHandler)
-	NewMetricHandler(CBMetricHandler)
-}
+
 
 func (a *AdminServer) fetchMetrics() {
 	initDefaultMetrics()

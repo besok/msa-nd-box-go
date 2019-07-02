@@ -13,6 +13,10 @@ type MetricsProcessor struct {
 }
 
 var defaultMetricProcessor = MetricsProcessor{make([]MetricHandler, 0)}
+func initDefaultMetrics() {
+	NewMetricHandler(PulseMetricHandler)
+	NewMetricHandler(CBMetricHandler)
+}
 
 func NewMetricHandler(handler MetricHandler) {
 	defaultMetricProcessor.handlers = append(defaultMetricProcessor.handlers, handler)

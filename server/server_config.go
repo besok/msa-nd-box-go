@@ -12,10 +12,13 @@ import (
 )
 
 const (
+	SERVER       Param = "server"
 	DISCOVERY       Param = "discovery"
 	CIRCUIT_BREAKER Param = "circuit_breaker"
 	PORT            Param = "port"
 	LOAD_BALANCER   Param = "load_balancer"
+	RESTART         Param = "restart"
+	RESTART_COUNT   Param = "restart_count"
 )
 
 type Param string
@@ -91,11 +94,11 @@ func discovery(server *Server) error {
 	}
 	params := make(map[string]string)
 
-	for k,v:= range server.config.Params{
+	for k, v := range server.config.Params {
 		params[string(k)] = v
 	}
 
-	sm := message.ServerMessage{Service: server.service,Params:params}
+	sm := message.ServerMessage{Service: server.service, Params: params}
 	buffer := new(bytes.Buffer)
 	_ = json.NewEncoder(buffer).Encode(sm)
 	b, err := http.Post(fmt.Sprintf("http://%s/register", s), "application/json; charset=utf-8", buffer)
@@ -130,4 +133,3 @@ func port(s *Server) error {
 	s.service.Address = port
 	return nil
 }
-

@@ -7,11 +7,13 @@ import (
 
 func main() {
 
-	name := flag.String("server", "server", "to set an unique name for this server.")
-	d := flag.String("discovery", "", "to turn on service discovery. The param value is service discovery address")
-	lb := flag.String("balance", "", "to turn on a balance strategy. Possible values are robin or random")
-	cb := flag.Bool("cb", false, "to turn on a circuit breaker. Does not involve any values.")
-	p := flag.String("port", "", "to ser a port to start server. The random port by default.")
+	name := flag.String(string(SERVER), "server", "to set an unique name for this server.")
+	d := flag.String(string(DISCOVERY), "", "to turn on service discovery. The param value is service discovery address")
+	lb := flag.String(string(LOAD_BALANCER), "", "to turn on a balance strategy. Possible values are robin or random")
+	cb := flag.Bool(string(CIRCUIT_BREAKER), false, "to turn on a circuit breaker. Does not involve any values.")
+	p := flag.String(string(PORT), "", "to ser a port to start server. The random port by default.")
+	r := flag.String(string(RESTART), "", "to restart application if it goes down or cb goes down. This parameter is a path to file")
+	rC := flag.String(string(RESTART_COUNT), "", "count of restarts after that stop restarting")
 
 	flag.Parse()
 
@@ -32,6 +34,16 @@ func main() {
 	if *lb != "" {
 		srv.AddParam(LOAD_BALANCER, *lb)
 	}
+
+	if *r != "" {
+		srv.AddParam(RESTART, *r)
+	}
+
+	if *rC != "" {
+		srv.AddParam(RESTART_COUNT, *rC)
+	}
+
+
 
 	srv.Start()
 }

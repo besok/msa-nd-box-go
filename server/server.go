@@ -34,6 +34,10 @@ type Server struct {
 	listener   *net.Listener
 }
 
+func(s *Server) Close() error {
+	return (*s.listener).Close()
+}
+
 func CreateServer(serviceName string, gauges ...Gauge) *Server {
 	port, li := findNextPort()
 	address := fmt.Sprintf(":%d", port)
@@ -58,6 +62,8 @@ func (s *Server) Start() {
 	s.mux.HandleFunc("/close", s.close)
 	srv := http.Server{Addr: addr, Handler: s.mux}
 	li := *s.listener
+	//to put it last
+	AddCloseOperation(Close)
 	log.Println(srv.Serve(li.(*net.TCPListener)))
 }
 
@@ -183,8 +189,12 @@ func closeOp(s *Server) error {
 			return e
 		}
 	}
+
 	return nil
 }
 func (s *Server) GetService() message.Service {
 	return s.service
+}
+func Close(s *Server) error {
+	return s.Close()
 }

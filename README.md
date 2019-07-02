@@ -10,3 +10,4 @@ Simple implementation msa patterns with go lang
 - init params
 - close /init operations
 - console client
+- restart if failed or circuit breaker turns on

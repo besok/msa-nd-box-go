@@ -8,6 +8,7 @@ import (
 	"msa-nd-box-go/message"
 	"msa-nd-box-go/storage"
 	"net/http"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -83,8 +84,9 @@ func (a *AdminServer) closeServices(writer http.ResponseWriter, request *http.Re
 		if err != nil {
 			log.Printf("server with address:%s is failed while termination, error:%s", addr, err)
 		}
-
-		if resp.StatusCode == 500 {
+		if resp == nil {
+			log.Printf("server with address:%s closed", addr)
+		} else if resp.StatusCode == 500 {
 			log.Printf("server with address:%s is failed while termination, error:%s", addr, err)
 		}
 	}
@@ -343,4 +345,8 @@ func processLoadBalancer(a *AdminServer, service message.Service, p string, v st
 	}
 
 	return nil
+}
+
+func(a *AdminServer) startServer(path string) error {
+	return exec.Command(path).Start()
 }

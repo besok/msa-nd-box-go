@@ -65,7 +65,7 @@ type LBLines struct {
 }
 
 func (l *LBLines) fromString(records Records) {
-	lines := make([]LBLine, len(records))
+	l.lines = make([]LBLine, len(records))
 	for i, v := range records {
 		split := strings.Split(v, ":")
 
@@ -75,9 +75,8 @@ func (l *LBLines) fromString(records Records) {
 		if e != nil {
 			el = 0
 		}
-		lines[i] = LBLine{serviceName,strategy,el}
+		l.lines[i] = LBLine{serviceName,strategy,el}
 	}
-
 }
 
 func (l *LBLines) ToString() Records {

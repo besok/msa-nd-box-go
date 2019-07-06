@@ -42,8 +42,23 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 	server.serverMux.HandleFunc("/init/service/", server.initServices)
 	server.serverMux.HandleFunc("/close/service/", server.closeServices)
 	AddParamHandler(processLoadBalancer)
+	server.AddStorageListener(server.removeUnusedValFromLBstr)
 	return &server
 }
+
+func (a *AdminServer) removeUnusedValFromLBstr (event storage.Event, storageName storage.Name, key string, value storage.Line) {
+		if event == storage.RemoveKey && storageName == REGISTRY_STORAGE {
+			lbStr := a.storage(LOAD_BALANCER_STORAGE)
+			var l storage.Line
+			l = storage.LBLine{Service: key}
+			if line, ok := lbStr.GetValue("services", &l); ok {
+				log.Printf("remove from loadbalancer storage:%s, because there is not one running instance", line)
+				if err := lbStr.RemoveValue("services", line); err != nil {
+					log.Println("can not remove val from loadbalancer storage, because ", err)
+				}
+			}
+		}
+	}
 
 func (a *AdminServer) initServices(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
@@ -110,6 +125,12 @@ func createStorage(path string, name string, f func() storage.Lines, listeners .
 		panic(err)
 	}
 	return str
+}
+
+func (a *AdminServer) AddStorageListener(listener storage.Listener) {
+	for _,v := range a.storages{
+		v.AddListener(listener)
+	}
 }
 
 func (a *AdminServer) Start(port string) {

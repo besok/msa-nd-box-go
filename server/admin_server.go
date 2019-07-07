@@ -20,9 +20,9 @@ type AdminParam struct {
 type Storages map[string]*storage.Storage
 
 const (
-	REGISTRY_STORAGE        = "service_registry_storage"
-	CIRCUIT_BREAKER_STORAGE = "circuit_breaker_storage"
-	LOAD_BALANCER_STORAGE   = "load_balancer_storage"
+	registryStorage       = "service_registry_storage"
+	circuitBreakerStorage = "circuit_breaker_storage"
+	loadBalanceStorage    = "load_balancer_storage"
 )
 
 
@@ -47,8 +47,8 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 }
 
 func (a *AdminServer) removeUnusedValFromLBstr (event storage.Event, storageName storage.Name, key string, value storage.Line) {
-		if event == storage.RemoveKey && storageName == REGISTRY_STORAGE {
-			lbStr := a.storage(LOAD_BALANCER_STORAGE)
+		if event == storage.RemoveKey && storageName == registryStorage {
+			lbStr := a.storage(loadBalanceStorage)
 			var l storage.Line
 			l = storage.LBLine{Service: key}
 			if line, ok := lbStr.GetValue("services", &l); ok {
@@ -101,20 +101,20 @@ func (a *AdminServer) closeServices(writer http.ResponseWriter, request *http.Re
 func findWorkingServers(serviceName string, a *AdminServer) storage.Lines {
 	var lines storage.Lines
 	serviceName = strings.TrimSuffix(serviceName, "/")
-	hasCB := a.storage(CIRCUIT_BREAKER_STORAGE).Contains(serviceName)
+	hasCB := a.storage(circuitBreakerStorage).Contains(serviceName)
 	if hasCB {
-		lines = *a.filterLines(CIRCUIT_BREAKER_STORAGE, serviceName, activeCBServices)
+		lines = *a.filterLines(circuitBreakerStorage, serviceName, activeCBServices)
 	} else {
-		lines = *a.filterLines(REGISTRY_STORAGE, serviceName, noFilter)
+		lines = *a.filterLines(registryStorage, serviceName, noFilter)
 	}
 	return lines
 }
 
 func createDefaultStorages(path string, listeners ...storage.Listener) Storages {
 	strs := make(Storages)
-	strs[REGISTRY_STORAGE] = createStorage(path, REGISTRY_STORAGE, storage.CreateStringLines, listeners...)
-	strs[CIRCUIT_BREAKER_STORAGE] = createStorage(path, CIRCUIT_BREAKER_STORAGE, storage.CreateCBLines, listeners...)
-	strs[LOAD_BALANCER_STORAGE] = createStorage(path, LOAD_BALANCER_STORAGE, storage.CreateLBLines, listeners...)
+	strs[registryStorage] = createStorage(path, registryStorage, storage.CreateStringLines, listeners...)
+	strs[circuitBreakerStorage] = createStorage(path, circuitBreakerStorage, storage.CreateCBLines, listeners...)
+	strs[loadBalanceStorage] = createStorage(path, loadBalanceStorage, storage.CreateLBLines, listeners...)
 	return strs
 }
 
@@ -157,7 +157,7 @@ func (a *AdminServer) fetchMetrics() {
 			"pulse", message.Metric{Value: "", Error: err})
 	}
 	for {
-		str := a.storage(REGISTRY_STORAGE)
+		str := a.storage(registryStorage)
 		keys := str.Keys()
 
 		for _, k := range keys {
@@ -202,7 +202,7 @@ func (a *AdminServer) registerServiceHandler(writer http.ResponseWriter, request
 	}
 	service := sm.Service
 	log.Printf("got message from server: %s and address %s \n", service.Service, service.Address)
-	err = a.storage(REGISTRY_STORAGE).Put(service.Service, storage.StringLine{Value: service.Address})
+	err = a.storage(registryStorage).Put(service.Service, storage.StringLine{Value: service.Address})
 	if err != nil {
 		log.Fatalf(" error:%s, saving at storage", err)
 	}
@@ -229,27 +229,27 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 
 	if strings.Contains(serviceName, "/all") {
 		serviceName = strings.TrimSuffix(serviceName, "/all")
-		hasCB := a.storage(CIRCUIT_BREAKER_STORAGE).Contains(serviceName)
+		hasCB := a.storage(circuitBreakerStorage).Contains(serviceName)
 		if hasCB {
-			lines = *a.filterLines(CIRCUIT_BREAKER_STORAGE, serviceName, activeCBServices)
+			lines = *a.filterLines(circuitBreakerStorage, serviceName, activeCBServices)
 		} else {
-			lines = *a.filterLines(REGISTRY_STORAGE, serviceName, noFilter)
+			lines = *a.filterLines(registryStorage, serviceName, noFilter)
 		}
 		js, e = json.Marshal(message.CreateGetServiceAllMessage(serviceName, lines))
 	} else {
 		serviceName = strings.TrimSuffix(serviceName, "/")
-		hasCB := a.storage(CIRCUIT_BREAKER_STORAGE).Contains(serviceName)
+		hasCB := a.storage(circuitBreakerStorage).Contains(serviceName)
 		if hasCB {
-			lines = *a.filterLines(CIRCUIT_BREAKER_STORAGE, serviceName, activeCBServices)
+			lines = *a.filterLines(circuitBreakerStorage, serviceName, activeCBServices)
 		} else {
-			lines = *a.filterLines(REGISTRY_STORAGE, serviceName, noFilter)
+			lines = *a.filterLines(registryStorage, serviceName, noFilter)
 		}
 
 		var addr = ""
 		records := lines.ToString()
 		rLn := len(records)
 
-		lbStr := a.storage(LOAD_BALANCER_STORAGE)
+		lbStr := a.storage(loadBalanceStorage)
 		var ln storage.Line = storage.LBLine{Service: serviceName}
 
 		v, ok := lbStr.GetValue("services", &ln)
@@ -339,7 +339,7 @@ func lbStrategyPicker(str storage.LBStrategy, idx int, records []string) (string
 func processLoadBalancer(a *AdminServer, service message.Service, p string, v string) error {
 	if p == string(LOAD_BALANCER) {
 		log.Printf("include load balancer:%s for %s", v, service)
-		str := a.storage(LOAD_BALANCER_STORAGE)
+		str := a.storage(loadBalanceStorage)
 		var ln storage.Line
 		ln = storage.LBLine{Service: service.Service, Strategy: storage.LBStrategy(v), Idx: 0}
 		_, ok := str.GetValue("services", &ln)

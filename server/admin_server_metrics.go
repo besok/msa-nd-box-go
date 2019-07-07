@@ -38,14 +38,14 @@ func PulseMetricHandler(a *AdminServer, message message.MetricsMessage) error {
 	if !ok {
 		service := message.From
 		log.Printf("service:%s does not have pulse or the service does not have the pulse metric. It needs to be removed", service)
-		str := a.storage(REGISTRY_STORAGE)
+		str := a.storage(registryStorage)
 		return str.RemoveValue(service.Service, storage.StringLine{Value: service.Address})
 	}
 
 	if metric.Error != nil {
 		service := message.From
 		log.Printf("service:%s does not have pulse. It needs to be removed", service)
-		str := a.storage(REGISTRY_STORAGE)
+		str := a.storage(registryStorage)
 		return str.RemoveValue(service.Service, storage.StringLine{Value: service.Address})
 	}
 	return nil
@@ -54,7 +54,7 @@ func CBMetricHandler(a *AdminServer, message message.MetricsMessage) error {
 	metrics := message.Metrics
 	metric, ok := metrics["cb"]
 	service := message.From
-	str := a.storage(CIRCUIT_BREAKER_STORAGE)
+	str := a.storage(circuitBreakerStorage)
 
 	if !ok {
 		return str.RemoveValue(service.Service, storage.CBLine{Address: service.Address})

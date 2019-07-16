@@ -75,14 +75,14 @@ func (l *LBLines) fromString(records Records) {
 		if e != nil {
 			el = 0
 		}
-		l.lines[i] = LBLine{serviceName,strategy,el}
+		l.lines[i] = LBLine{serviceName, strategy, el}
 	}
 }
 
 func (l *LBLines) ToString() Records {
 	lines := make(Records, len(l.lines))
 	for i, v := range l.lines {
-		lines[i] = fmt.Sprintf("%s:%s:%d", v.Service, v.Strategy,v.Idx)
+		lines[i] = fmt.Sprintf("%s:%s:%d", v.Service, v.Strategy, v.Idx)
 	}
 	return lines
 }
@@ -193,6 +193,9 @@ func CreateCBLines() Lines {
 func CreateLBLines() Lines {
 	return new(LBLines)
 }
+func CreateReloadLines() Lines {
+	return new(ReloadLines)
+}
 
 // simple base impl
 type StringLine struct {
@@ -276,7 +279,6 @@ type CBLine struct {
 	Address string
 	Active  bool
 }
-
 type CBLines struct {
 	Lines []CBLine
 }
@@ -343,4 +345,81 @@ func (l *CBLines) Size() int {
 func (v CBLine) Equal(other Line) bool {
 	otherV := other.(CBLine)
 	return v.Address == otherV.Address
+}
+
+type ReloadLine struct {
+	Service string
+	Address string
+	Path    string
+	Limit   int
+	Count   int
+}
+
+type ReloadLines struct {
+	Lines []ReloadLine
+}
+
+func (l *ReloadLines) Get(idx int) (Line, bool) {
+	sz := len(l.Lines)
+	if idx > sz-1 || idx < 0 {
+		return nil, false
+	}
+	return l.Lines[idx], true
+}
+func (l *ReloadLines) fromString(records Records) {
+	l.Lines = make([]ReloadLine, len(records))
+	for i, v := range records {
+		vals := strings.Split(v, "=")
+
+		count, _ := strconv.Atoi(vals[3])
+		limit, _ := strconv.Atoi(vals[4])
+		rl := ReloadLine{
+			Service: vals[0],
+			Address: vals[1],
+			Path:    vals[2],
+			Count:   count,
+			Limit:   limit,
+		}
+		l.Lines[i] = rl
+	}
+}
+
+func (l *ReloadLines) ToString() Records {
+	records := make([]string, l.Size())
+	for i, v := range l.Lines {
+		records[i] = fmt.Sprintf("%s=%s=%s=%d=%d", v.Service, v.Address, v.Path, v.Count, v.Limit)
+	}
+	return records
+}
+func (ReloadLines) Equal(left Line, right Line) bool {
+	return left.Equal(right)
+}
+func (l *ReloadLines) Add(line Line) bool {
+	l.Lines = append(l.Lines, line.(ReloadLine))
+	return true
+}
+func (l *ReloadLines) Remove(line Line) bool {
+	idx := -1
+	values := l.Lines
+	for i, el := range values {
+		if l.Equal(el, line) {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return false
+	}
+	ln := len(values)
+	values[ln-1], values[idx] = values[idx], values[ln-1]
+	l.Lines = values[:ln-1]
+	return true
+}
+
+func (l *ReloadLines) Size() int {
+	return len(l.Lines)
+}
+func (v ReloadLine) Equal(other Line) bool {
+	otherV := other.(ReloadLine)
+	return v.Service == otherV.Service
 }

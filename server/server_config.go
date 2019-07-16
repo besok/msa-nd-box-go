@@ -12,13 +12,14 @@ import (
 )
 
 const (
-	SERVER       Param = "server"
-	DISCOVERY       Param = "discovery"
-	CIRCUIT_BREAKER Param = "circuit_breaker"
-	PORT            Param = "port"
-	LOAD_BALANCER   Param = "load_balancer"
-	RESTART         Param = "restart"
-	RESTART_COUNT   Param = "restart_count"
+	SERVER              Param = "server"
+	DISCOVERY           Param = "discovery"
+	CIRCUIT_BREAKER     Param = "circuit_breaker"
+	PORT                Param = "port"
+	LOAD_BALANCER       Param = "load_balancer"
+	RESTART             Param = "restart"
+	RESTART_KEEP_PARAMS Param = "restart_keep_params"
+	RESTART_COUNT       Param = "restart_count"
 )
 
 type Param string

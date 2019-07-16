@@ -23,16 +23,14 @@ const (
 	registryStorage       = "service_registry_storage"
 	circuitBreakerStorage = "circuit_breaker_storage"
 	loadBalanceStorage    = "load_balancer_storage"
+	reloadStorage         = "reload_storage"
 )
-
 
 type AdminServer struct {
 	storages  Storages
 	serverMux *http.ServeMux
 	config    Config
 }
-
-
 
 func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Listener) *AdminServer {
 	strs := createDefaultStorages(serviceRegistryStorage, listeners...)
@@ -42,23 +40,50 @@ func CreateAdminServer(serviceRegistryStorage string, listeners ...storage.Liste
 	server.serverMux.HandleFunc("/init/service/", server.initServices)
 	server.serverMux.HandleFunc("/close/service/", server.closeServices)
 	AddParamHandler(processLoadBalancer)
+	AddParamHandler(ReloadFunc)
+	server.AddStorageListener(server.restartServer)
 	server.AddStorageListener(server.removeUnusedValFromLBstr)
 	return &server
 }
 
-func (a *AdminServer) removeUnusedValFromLBstr (event storage.Event, storageName storage.Name, key string, value storage.Line) {
-		if event == storage.RemoveKey && storageName == registryStorage {
-			lbStr := a.storage(loadBalanceStorage)
-			var l storage.Line
-			l = storage.LBLine{Service: key}
-			if line, ok := lbStr.GetValue("services", &l); ok {
-				log.Printf("remove from loadbalancer storage:%s, because there is not one running instance", line)
-				if err := lbStr.RemoveValue("services", line); err != nil {
-					log.Println("can not remove val from loadbalancer storage, because ", err)
-				}
+func (a *AdminServer) removeUnusedValFromLBstr(event storage.Event, storageName storage.Name, key string, value storage.Line) {
+	if event == storage.RemoveKey && storageName == registryStorage {
+		lbStr := a.storage(loadBalanceStorage)
+		var l storage.Line
+		l = storage.LBLine{Service: key}
+		if line, ok := lbStr.GetValue("services", &l); ok {
+			log.Printf("remove from loadbalancer storage:%s, because there is not one running instance", line)
+			if err := lbStr.RemoveValue("services", line); err != nil {
+				log.Println("can not remove val from loadbalancer storage, because ", err)
 			}
 		}
 	}
+}
+func (a *AdminServer) restartServer(event storage.Event, storageName storage.Name, key string, value storage.Line) {
+	if event == storage.RemoveVal && storageName == registryStorage {
+		relStr := a.storage(reloadStorage)
+		sl := value.(storage.StringLine)
+		var l storage.Line
+		l = storage.ReloadLine{Service: key, Address: sl.Value}
+		if line, ok := relStr.GetValue("services", &l); ok {
+
+			reloadLine := line.(storage.ReloadLine)
+			if reloadLine.Count < reloadLine.Limit {
+				err := a.startServer(reloadLine.Path)
+				if err != nil {
+					log.Printf("error to restart the server: %s, path:%s", err, reloadLine.Path)
+				} else {
+					log.Printf("server is restarted,path:%s", reloadLine.Path)
+				}
+
+				reloadLine.Count += 1
+				_ = relStr.Put("services", reloadLine)
+			} else {
+				log.Printf("reloac limit: %d is reached for service:%s", reloadLine.Count, reloadLine.Service)
+			}
+		}
+	}
+}
 
 func (a *AdminServer) initServices(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
@@ -115,6 +140,7 @@ func createDefaultStorages(path string, listeners ...storage.Listener) Storages 
 	strs[registryStorage] = createStorage(path, registryStorage, storage.CreateStringLines, listeners...)
 	strs[circuitBreakerStorage] = createStorage(path, circuitBreakerStorage, storage.CreateCBLines, listeners...)
 	strs[loadBalanceStorage] = createStorage(path, loadBalanceStorage, storage.CreateLBLines, listeners...)
+	strs[reloadStorage] = createStorage(path, reloadStorage, storage.CreateReloadLines, listeners...)
 	return strs
 }
 
@@ -128,7 +154,7 @@ func createStorage(path string, name string, f func() storage.Lines, listeners .
 }
 
 func (a *AdminServer) AddStorageListener(listener storage.Listener) {
-	for _,v := range a.storages{
+	for _, v := range a.storages {
 		v.AddListener(listener)
 	}
 }
@@ -145,8 +171,6 @@ func (a *AdminServer) snapshot() {
 		log.Println(storage.Snapshot(v))
 	}
 }
-
-
 
 func (a *AdminServer) fetchMetrics() {
 	initDefaultMetrics()
@@ -354,6 +378,6 @@ func processLoadBalancer(a *AdminServer, service message.Service, p string, v st
 	return nil
 }
 
-func(a *AdminServer) startServer(path string) error {
+func (a *AdminServer) startServer(path string) error {
 	return exec.Command(path).Start()
 }

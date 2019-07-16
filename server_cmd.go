@@ -14,6 +14,7 @@ func main() {
 	p := flag.String(string(PORT), "", "to ser a port to start server. The random port by default.")
 	r := flag.String(string(RESTART), "", "to restart application if it goes down or cb goes down. This parameter is a path to file")
 	rC := flag.String(string(RESTART_COUNT), "", "count of restarts after that stop restarting")
+	rP := flag.Bool(string(RESTART_KEEP_PARAMS), false, "if that flag is set, restart will be with the same params")
 
 	flag.Parse()
 
@@ -43,7 +44,9 @@ func main() {
 		srv.AddParam(RESTART_COUNT, *rC)
 	}
 
-
+	if *rP && *r != "" {
+		srv.AddParam(RESTART_KEEP_PARAMS,*r)
+	}
 
 	srv.Start()
 }

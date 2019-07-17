@@ -15,4 +15,4 @@ This is a tiny implementation of basic patterns for microservice architecture.
 - init params
 - close /init operations
 - console client
-- restart if failed or circuit breaker turns on
+- restart if failed 

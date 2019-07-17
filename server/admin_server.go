@@ -106,7 +106,9 @@ func (a *AdminServer) initServices(writer http.ResponseWriter, request *http.Req
 func (a *AdminServer) closeServices(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 	serviceName := strings.TrimPrefix(request.URL.Path, "/close/service/")
-
+	if err := a.storage(reloadStorage).RemoveValue("services", storage.ReloadLine{Service: serviceName,}); err != nil {
+		log.Printf(" error with clean the reload storage up, service:%s, error:%s",serviceName,err)
+	}
 	servers := findWorkingServers(serviceName, a).ToString()
 
 	for _, addr := range servers {

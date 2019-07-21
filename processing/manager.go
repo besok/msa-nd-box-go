@@ -14,38 +14,44 @@ import (
 )
 
 type Manager struct {
-	a *server.AdminServer
+	a         *server.AdminServer
 	batchSize int
 }
-type taskQ []string
+type taskQ struct {
+	tasks []string
+}
 
 func (q *taskQ) empty() bool {
-	return len(*q) == 0
+	return len(q.tasks) == 0
 }
 
 func (q *taskQ) push(p string) {
-	*q = append(*q, p)
+	q.tasks = append(q.tasks, p)
 }
 
-func (q taskQ) pop() string {
-	el := q[len(q)-1]
-	q = q[:len(q)-1]
-	return el
+func (q *taskQ) pop() (string, bool) {
+	len := len(q.tasks)
+	if len == 0 {
+		return "", false
+	}
+	el := q.tasks[len-1]
+	q.tasks = q.tasks[:len-1]
+	return el, true
 }
 
 type queue interface {
 	empty() bool
 	push(p string)
-	pop() string
+	pop() (string, bool)
 }
 
 var workerPath string
 var resList = make([]Result, 0)
-var qTask = taskQ(make([]string, 0))
+var qTask = taskQ{make([]string, 0)}
 
 func InitManager(batchSize int, wPath string) {
 	workerPath = wPath
-	adm := Manager{server.CreateAdminServer("file_storages_procesing"),batchSize}
+	adm := Manager{server.CreateAdminServer("file_storages_procesing"), batchSize}
 
 	server.AddParamHandler(processPath)
 	server.NewMetricHandler(processFreeWorkers)
@@ -53,6 +59,7 @@ func InitManager(batchSize int, wPath string) {
 	adm.a.AddHandler("/task", processResult)
 	adm.a.AddHandler("/res", showResult)
 	adm.a.AddHandler("/start", adm.startProcess)
+	adm.a.AddHandler("/q", showQueue)
 
 	adm.a.Start("9001")
 }
@@ -61,17 +68,18 @@ func processFreeWorkers(a *server.AdminServer, m message.MetricsMessage) error {
 	metric, ok := m.Metrics["state"]
 	address := m.From.Address
 	if !ok {
+		log.Println("the metric state is a mandatpry for this case, ",m)
 		_, _ = http.Get(fmt.Sprint("http://", address, "/close"))
 		return nil
 	}
 
 	if metric.Value == "false" {
 		if !qTask.empty() {
-			p := qTask.pop()
-			_, err := http.Post(fmt.Sprint("http://", address, "/close"), " text/plain",
+			p, _ := qTask.pop()
+			_, err := http.Post(fmt.Sprint("http://", address, "/task"), " text/plain",
 				bytes.NewReader([]byte(p)))
 			if err != nil {
-				fmt.Println("error to send a new task")
+				fmt.Println("error to send a new task, error:", err)
 			}
 
 		} else {
@@ -90,6 +98,8 @@ func processResult(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatalf(" error %s while parsing json %s \n", err, r.Body)
 		return
+	} else {
+		log.Printf("got a result from worker: %+v", res)
 	}
 
 	resList = append(resList, res)
@@ -131,7 +141,17 @@ func addFileToQ(p string, i os.FileInfo, err error) error {
 	log.Println("add file to q : ", p)
 	return nil
 }
-
+func showQueue(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	js, e := json.Marshal(qTask.tasks)
+	if e != nil {
+		log.Fatalf("can't convert to json, %s", e)
+	}
+	_, e = w.Write(js)
+	if e != nil {
+		log.Fatalf("can't send, %s", e)
+	}
+}
 func showResult(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	js, e := json.Marshal(resList)

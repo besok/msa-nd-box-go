@@ -33,7 +33,7 @@ func InitWorker() {
 	srv.AddGauge(State)
 
 	srv.AddParam(server.DISCOVERY, adminServer)
-	srv.AddParam(PATH, `"C:\projects\msa-nd-box-go\bin\server_worker_runner_go.exe"`)
+	srv.AddParam(PATH, `"C:\projects\msa-nd-box-go\bin\processing_worker_runner_go.exe"`)
 
 	srv.AddHandler("/task", taskHandler)
 
@@ -56,7 +56,8 @@ func ProcessTask(p string) {
 	buffer := new(bytes.Buffer)
 	_ = json.NewEncoder(buffer).Encode(result)
 	_, e = http.Post(fmt.Sprint("http://",adminServer, "/task"), "application/json; charset=utf-8", buffer)
-	log.Printf(" send a request to admin server: result:%s, result error:%s",result.Count, e)
+	log.Printf(" send a request to admin server: result:%d, result error:%s",result.Count, e)
+	isBusy = false
 }
 
 func Task(pathFile string) (int, error) {

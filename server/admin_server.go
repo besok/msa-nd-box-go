@@ -400,5 +400,6 @@ func processLoadBalancer(a *AdminServer, service message.Service, p string, v st
 }
 
 func (a *AdminServer) StartNewCommand(path string) error {
+	log.Println("starting a new command for path: ",path)
 	return exec.Command(path).Start()
 }

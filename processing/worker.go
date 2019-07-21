@@ -24,7 +24,7 @@ type Result struct {
 var (
 	isBusy = false
 	mutex  = sync.Mutex{}
-	adminServer = "localhost:9000"
+	adminServer = "localhost:9001"
 )
 
 func InitWorker() {
@@ -33,7 +33,7 @@ func InitWorker() {
 	srv.AddGauge(State)
 
 	srv.AddParam(server.DISCOVERY, adminServer)
-	srv.AddParam(PATH, "path")
+	srv.AddParam(PATH, `"C:\projects\msa-nd-box-go\bin\server_worker_runner_go.exe"`)
 
 	srv.AddHandler("/task", taskHandler)
 

@@ -13,6 +13,7 @@ type MetricsProcessor struct {
 }
 
 var defaultMetricProcessor = MetricsProcessor{make([]MetricHandler, 0)}
+
 func initDefaultMetrics() {
 	NewMetricHandler(PulseMetricHandler)
 	NewMetricHandler(CBMetricHandler)
@@ -30,7 +31,6 @@ func HandleMetrics(a *AdminServer, metricsMessage message.MetricsMessage) {
 	}
 }
 
-
 func PulseMetricHandler(a *AdminServer, message message.MetricsMessage) error {
 	metrics := message.Metrics
 	metric, ok := metrics["pulse"]
@@ -38,42 +38,28 @@ func PulseMetricHandler(a *AdminServer, message message.MetricsMessage) error {
 	if !ok {
 		service := message.From
 		log.Printf("service:%s does not have pulse or the service does not have the pulse metric. It needs to be removed", service)
-		str := a.storage(registryStorage)
+		str := a.Storage(RegistryStorage)
 		return str.RemoveValue(service.Service, storage.StringLine{Value: service.Address})
 	}
 
 	if metric.Error != nil {
 		service := message.From
 		log.Printf("service:%s does not have pulse. It needs to be removed", service)
-		str := a.storage(registryStorage)
+		str := a.Storage(RegistryStorage)
 		return str.RemoveValue(service.Service, storage.StringLine{Value: service.Address})
 	}
 	return nil
 }
 func CBMetricHandler(a *AdminServer, message message.MetricsMessage) error {
-	metrics := message.Metrics
-	metric, ok := metrics["cb"]
-	service := message.From
-	str := a.storage(circuitBreakerStorage)
-
-	if !ok {
-		return str.RemoveValue(service.Service, storage.CBLine{Address: service.Address})
-	}
-
-	active := true
-	if metric.Error != nil || metric.Value != "true" {
-		active = false
-	}
-	var ln storage.Line
-	ln = storage.CBLine{Address: service.Address, Active: false}
-
-	line, ok := str.GetValue(service.Service, &ln)
-	if ok {
-		cbLine := line.(storage.CBLine)
-		if cbLine.Active == active {
-			return nil
+	if metric, ok := message.Metrics["cb"]; ok {
+		service := message.From
+		str := a.Storage(CircuitBreakerStorage)
+		active := true
+		if metric.Error != nil || metric.Value != "true" {
+			active = false
 		}
+		return str.Put(service.Service, storage.CBLine{Address: service.Address, Active: active})
 	}
 
-	return str.Put(service.Service, storage.CBLine{Address: service.Address, Active: active})
+	return nil
 }

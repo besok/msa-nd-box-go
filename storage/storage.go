@@ -21,6 +21,13 @@ type Storage struct {
 	handler    *ListenerHandler
 }
 
+func (s *Storage) RemoveValueIfExist(k string, l *Line) error {
+	if _, ok := s.GetValue(k, l); ok {
+		return s.RemoveValue(k, *l)
+	}
+	return nil
+}
+
 func Snapshot(s *Storage) string {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()

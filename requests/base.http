@@ -11,3 +11,14 @@ Content-Type: text/plain
 C:\\Users\\Boris\\Videos\\Miracle Workers (Season 1) WEB-DL 1080p\\Miracle.Workers.S01E01.WEB-DL.1080p.Rus.Eng.mkv
 
 ###
+POST http://localhost:9001/start
+Content-Type: text/plain
+
+C:\\Users\\Boris\\Videos\\Miracle Workers\\
+
+###
+
+GET http://localhost:9001/res
+Accept: application/json
+
+###

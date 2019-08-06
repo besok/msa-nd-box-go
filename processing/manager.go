@@ -68,7 +68,7 @@ func processFreeWorkers(a *server.AdminServer, m message.MetricsMessage) error {
 	metric, ok := m.Metrics["state"]
 	address := m.From.Address
 	if !ok {
-		log.Println("the metric state is a mandatpry for this case, ",m)
+		log.Println("the metric state is a mandatpry for this case, ", m)
 		_, _ = http.Get(fmt.Sprint("http://", address, "/close"))
 		return nil
 	}

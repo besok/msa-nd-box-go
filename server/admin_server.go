@@ -52,14 +52,14 @@ func (a *AdminServer) AddHandler(pattern string, handler func(http.ResponseWrite
 	log.Printf("add new hanler: %s ", pattern)
 	a.serverMux.HandleFunc(pattern, handler)
 }
-func (a *AdminServer) removeCircuitBreaker(event storage.Event, storageName storage.Name, key string, value storage.Line){
+func (a *AdminServer) removeCircuitBreaker(event storage.Event, storageName storage.Name, key string, value storage.Line) {
 	if event == storage.RemoveVal && storageName == RegistryStorage {
 		str := a.Storage(CircuitBreakerStorage)
 		addr := value.(storage.StringLine)
 		var line storage.Line
 		line = storage.CBLine{Address: addr.Value, Active: true}
-		if err := str.RemoveValueIfExist(key, &line) ; err != nil {
-			log.Printf("error while removing: %s  from cb str, error:%s ",line,err)
+		if err := str.RemoveValueIfExist(key, &line); err != nil {
+			log.Printf("error while removing: %s  from cb str, error:%s ", line, err)
 		}
 
 	}
@@ -126,7 +126,7 @@ func (a *AdminServer) closeServices(writer http.ResponseWriter, request *http.Re
 	writer.Header().Set("Content-Type", "application/json")
 	serviceName := strings.TrimPrefix(request.URL.Path, "/close/service/")
 	if err := a.Storage(ReloadStorage).RemoveValue("services", storage.ReloadLine{Service: serviceName,}); err != nil {
-		log.Printf(" error with clean the reload Storage up, service:%s, error:%s",serviceName,err)
+		log.Printf(" error with clean the reload Storage up, service:%s, error:%s", serviceName, err)
 	}
 	servers := findWorkingServers(serviceName, a).ToString()
 
@@ -267,12 +267,11 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 	writer.Header().Set("Content-Type", "application/json")
 	serviceName := strings.TrimPrefix(request.URL.Path, "/service/")
 
-	var lines storage.Lines
-
 	var js []byte
 	var e error
 
 	if strings.Contains(serviceName, "/all") {
+		var lines storage.Lines
 		serviceName = strings.TrimSuffix(serviceName, "/all")
 		hasCB := a.Storage(CircuitBreakerStorage).Contains(serviceName)
 		if hasCB {
@@ -283,30 +282,7 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 		js, e = json.Marshal(message.CreateGetServiceAllMessage(serviceName, lines))
 	} else {
 		serviceName = strings.TrimSuffix(serviceName, "/")
-		hasCB := a.Storage(CircuitBreakerStorage).Contains(serviceName)
-		if hasCB {
-			lines = *a.filterLines(CircuitBreakerStorage, serviceName, activeCBServices)
-		} else {
-			lines = *a.filterLines(RegistryStorage, serviceName, noFilter)
-		}
-
-		var addr = ""
-		records := lines.ToString()
-		rLn := len(records)
-
-		lbStr := a.Storage(LoadBalanceStorage)
-		var ln storage.Line = storage.LBLine{Service: serviceName}
-
-		v, ok := lbStr.GetValue("services", &ln)
-		if ok {
-			lbLine := v.(storage.LBLine)
-			idx := lbLine.Idx
-			addr, idx = lbStrategyPicker(lbLine.Strategy, idx, records)
-			lbLine.Idx = idx
-			_ = lbStr.Put("services", lbLine)
-		} else if rLn > 0 {
-			addr = records[rand.Intn(rLn)]
-		}
+		addr := a.GetServiceByName(serviceName)
 
 		js, e = json.Marshal(message.CreateGetServiceMessage(serviceName, addr))
 
@@ -318,6 +294,32 @@ func (a *AdminServer) getServiceList(writer http.ResponseWriter, request *http.R
 	if e != nil {
 		log.Fatalf("can't send, %s", e)
 	}
+}
+
+func (a *AdminServer) GetServiceByName(serviceName string) string {
+	var lines storage.Lines
+	hasCB := a.Storage(CircuitBreakerStorage).Contains(serviceName)
+	if hasCB {
+		lines = *a.filterLines(CircuitBreakerStorage, serviceName, activeCBServices)
+	} else {
+		lines = *a.filterLines(RegistryStorage, serviceName, noFilter)
+	}
+	var addr = ""
+	records := lines.ToString()
+	rLn := len(records)
+	lbStr := a.Storage(LoadBalanceStorage)
+	var ln storage.Line = storage.LBLine{Service: serviceName}
+	v, ok := lbStr.GetValue("services", &ln)
+	if ok {
+		lbLine := v.(storage.LBLine)
+		idx := lbLine.Idx
+		addr, idx = lbStrategyPicker(lbLine.Strategy, idx, records)
+		lbLine.Idx = idx
+		_ = lbStr.Put("services", lbLine)
+	} else if rLn > 0 {
+		addr = records[rand.Intn(rLn)]
+	}
+	return addr
 }
 
 func (a *AdminServer) filterLines(str string, key string, filter func(lines storage.Lines) *storage.Lines) *storage.Lines {
@@ -400,6 +402,6 @@ func processLoadBalancer(a *AdminServer, service message.Service, p string, v st
 }
 
 func (a *AdminServer) StartNewCommand(path string) error {
-	log.Println("starting a new command for path: ",path)
+	log.Println("starting a new command for path: ", path)
 	return exec.Command(path).Start()
 }

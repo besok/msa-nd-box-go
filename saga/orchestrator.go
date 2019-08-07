@@ -27,8 +27,8 @@ func (o *Orch) handlerSaga(w http.ResponseWriter, r *http.Request) {
 	var saga message.SagaMessage
 	err := decoder.Decode(&saga)
 	if err != nil {
-		_, _ = w.Write([]byte("can not process"))
-		log.Fatalf(" error %s while parsing json %s \n", err, r.Body)
+		_, _ = w.Write([]byte(fmt.Sprintf(" error %s while parsing json %s \n", err, r.Body)))
+		return
 	}
 
 	log.Printf("got a saga message:%+v", saga)
@@ -37,13 +37,12 @@ func (o *Orch) handlerSaga(w http.ResponseWriter, r *http.Request) {
 	state := message.Start
 	idx := 0
 	if len(chapters) == 0 {
-		log.Println("saga does not have chapters, terminate.")
 		_, _ = w.Write([]byte("there are no chapters"))
 		return
 	}
-
-	for ok := true; ok; ok = checkSagaRes(state) {
-		if idx > len(chapters) {
+	input := chapters[0].Input
+	for {
+		if idx > len(chapters) - 1  {
 			state = message.Finish
 			_, _ = w.Write([]byte(state))
 			return
@@ -55,7 +54,7 @@ func (o *Orch) handlerSaga(w http.ResponseWriter, r *http.Request) {
 		}
 
 		ch := chapters[idx]
-
+		log.Printf("next chapter:%+v \n",ch)
 		s, ok := o.findService(ch.Service)
 		if !ok {
 			idx--
@@ -63,8 +62,7 @@ func (o *Orch) handlerSaga(w http.ResponseWriter, r *http.Request) {
 		} else {
 			var url string
 			switch state {
-			case message.Success:
-			case message.Start:
+			case message.Success, message.Start:
 				url = fmt.Sprintf("http://%s/%s", s, ch.Chapter)
 			case message.Rollback:
 				url = fmt.Sprintf("http://%s/%s", s, ch.Rollback)
@@ -72,9 +70,9 @@ func (o *Orch) handlerSaga(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(state))
 				return
 			}
-
+			ch.Input = input
 			buffer := new(bytes.Buffer)
-			_ = json.NewEncoder(buffer).Encode(sagaResultStart(ch))
+			_ = json.NewEncoder(buffer).Encode(ch)
 			resp, err := http.Post(url, "application/json; charset=utf-8", buffer)
 			if err != nil {
 				log.Println("got error: ", err)
@@ -98,13 +96,11 @@ func (o *Orch) handlerSaga(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write([]byte(state))
 				return
 			}
+
+			input = res.Result
 		}
 	}
 
-}
-
-func checkSagaRes(state message.ChapterState) bool {
-	return state != message.Abort || state != message.Finish
 }
 
 func (o *Orch) findService(service string) (string, bool) {
@@ -115,6 +111,3 @@ func (o *Orch) findService(service string) (string, bool) {
 	return addr, true
 }
 
-func sagaResultStart(ch message.Chapter) *message.ChapterResult {
-	return message.NewChapterResult(ch, message.Start)
-}

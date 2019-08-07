@@ -11,21 +11,21 @@ Content-Type: application/json
 {
   "Chapters": [
     {
-      "Service": "service1",
-      "Chapter": "chapter1",
-      "Rollback": "rRollback",
+      "Service": "checker",
+      "Chapter": "check",
+      "Rollback": "back",
       "Input": "Input"
     },
     {
-      "Service": "service1",
-      "Chapter": "chapter1",
-      "Rollback": "rRollback",
+      "Service": "fixer",
+      "Chapter": "fix",
+      "Rollback": "back",
       "Input": "Input"
     },
     {
-      "Service": "service1",
-      "Chapter": "chapter1",
-      "Rollback": "rRollback",
+      "Service": "maker",
+      "Chapter": "make",
+      "Rollback": "back",
       "Input": "Input"
     }
   ]

@@ -55,11 +55,13 @@ type Chapter struct {
 type ChapterResult struct {
 	Chapter Chapter
 	State   ChapterState
+	Result string
 }
 
-func NewChapterResult(chapter Chapter, state ChapterState) *ChapterResult {
-	return &ChapterResult{Chapter: chapter, State: state}
+func NewChapterResult(chapter Chapter, state ChapterState, result string) *ChapterResult {
+	return &ChapterResult{Chapter: chapter, State: state, Result: result}
 }
+
 
 type ChapterState string
 

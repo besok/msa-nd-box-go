@@ -16,3 +16,5 @@ This is a tiny implementation of basic patterns for microservice architecture.
 - close /init operations
 - console client
 - restart if failed 
+- saga (only orch based)
+- processing
